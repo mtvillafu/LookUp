@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import MenuButton from "../components/MenuButton";
 import DropdownMenu from "../components/DropdownMenu";
-import { Slot } from "expo-router"; // Adjust the import path as necessary
+import { Slot } from "expo-router"; 
 
 export default function RootLayout() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -58,4 +58,3 @@ const styles = StyleSheet.create({
     opacity: 0.76,
   },
 });
-
