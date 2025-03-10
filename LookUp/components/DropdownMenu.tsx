@@ -1,5 +1,4 @@
-import { Link } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +8,8 @@ import {
   StatusBar,
   TouchableWithoutFeedback,
 } from "react-native";
+import { Link } from "expo-router";
+import SearchMenu from "./SearchMenu"; // Import new menu
 
 interface DropdownMenuProps {
   isVisible: boolean;
@@ -21,6 +22,12 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   animation,
   closeMenu,
 }) => {
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  if (searchVisible) {
+    return <SearchMenu closeSearch={() => setSearchVisible(false)} />;
+  }
+
   return (
     isVisible && (
       <TouchableWithoutFeedback onPress={closeMenu}>
@@ -43,9 +50,13 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
             },
           ]}
         >
-          <Text style={styles.menuItem}>Search</Text>
+          <TouchableWithoutFeedback onPress={() => setSearchVisible(true)}>
+            <Text style={styles.menuItem}>Search</Text>
+          </TouchableWithoutFeedback>
           <Text style={styles.menuItem}>Favorites</Text>
-          <Link href="/map" style={styles.menuItem}>Map</Link>
+          <Link href="/map" style={styles.menuItem}>
+            Map
+          </Link>
           <Text style={styles.menuItem}>Account</Text>
           <Text style={styles.menuItem}>Settings</Text>
         </Animated.View>
@@ -69,6 +80,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     paddingTop:
       Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 30 : 80,
+    zIndex: 999,
   },
   menuItem: {
     color: "#FFFFFF",
