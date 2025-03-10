@@ -9,7 +9,8 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Link } from "expo-router";
-import SearchMenu from "./SearchMenu"; // Import new menu
+import SearchMenu from "../app/(tabs)/SearchMenu"; // Import SearchMenu
+import FavoritesMenu from "../app/(tabs)/FavoritesMenu"; // Import FavoritesMenu
 
 interface DropdownMenuProps {
   isVisible: boolean;
@@ -23,9 +24,14 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   closeMenu,
 }) => {
   const [searchVisible, setSearchVisible] = useState(false);
+  const [favoritesVisible, setFavoritesVisible] = useState(false);
 
   if (searchVisible) {
     return <SearchMenu closeSearch={() => setSearchVisible(false)} />;
+  }
+
+  if (favoritesVisible) {
+    return <FavoritesMenu closeFavorites={() => setFavoritesVisible(false)} />;
   }
 
   return (
@@ -53,7 +59,9 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
           <TouchableWithoutFeedback onPress={() => setSearchVisible(true)}>
             <Text style={styles.menuItem}>Search</Text>
           </TouchableWithoutFeedback>
-          <Text style={styles.menuItem}>Favorites</Text>
+          <TouchableWithoutFeedback onPress={() => setFavoritesVisible(true)}>
+            <Text style={styles.menuItem}>Favorites</Text>
+          </TouchableWithoutFeedback>
           <Link href="/map" style={styles.menuItem}>
             Map
           </Link>
