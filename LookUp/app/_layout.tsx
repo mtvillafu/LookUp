@@ -1,59 +1,39 @@
-import React, { useState, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  Animated,
-  TouchableWithoutFeedback,
-} from "react-native";
-import MenuButton from "../components/MenuButton";
-import DropdownMenu from "../components/DropdownMenu";
-import { Slot } from "expo-router";
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import 'react-native-reanimated';
+
+import { useColorScheme } from '@/hooks/useColorScheme';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [menuVisible, setMenuVisible] = useState(false);
-  const menuAnimation = useRef(new Animated.Value(0)).current;
+  const colorScheme = useColorScheme();
+  const [loaded] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  });
 
-  const toggleMenu = () => {
-    if (menuVisible) {
-      Animated.timing(menuAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setMenuVisible(false));
-    } else {
-      setMenuVisible(true);
-      Animated.timing(menuAnimation, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
     }
-  };
+  }, [loaded]);
+
+  if (!loaded) {
+    return null;
+  }
 
   return (
-    <TouchableWithoutFeedback
-      onPress={() => {
-        if (menuVisible) toggleMenu();
-      }}
-    >
-      <View style={styles.container}>
-        <Slot />
-        {menuVisible && (
-          <DropdownMenu
-            isVisible={menuVisible}
-            animation={menuAnimation}
-            closeMenu={toggleMenu}
-          />
-        )}
-        <MenuButton onPress={toggleMenu} />
-      </View>
-    </TouchableWithoutFeedback>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-});
