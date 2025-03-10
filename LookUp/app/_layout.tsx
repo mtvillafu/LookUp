@@ -1,4 +1,3 @@
-// import { Stack } from "expo-router";
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -8,7 +7,7 @@ import {
 } from "react-native";
 import MenuButton from "../components/MenuButton";
 import DropdownMenu from "../components/DropdownMenu";
-import { Slot } from "expo-router"; 
+import { Slot } from "expo-router";
 
 export default function RootLayout() {
   const [menuVisible, setMenuVisible] = useState(false);
@@ -30,31 +29,31 @@ export default function RootLayout() {
       }).start();
     }
   };
+
   return (
-    <>
-      <TouchableWithoutFeedback onPress={() => menuVisible && toggleMenu()}>
-        <View style={styles.container}>
-          {menuVisible && (
-            <DropdownMenu
-              isVisible={menuVisible}
-              animation={menuAnimation}
-              closeMenu={toggleMenu}
-            />
-          )}
-          <MenuButton onPress={toggleMenu} />
-        </View>
-      </TouchableWithoutFeedback>
-      <Slot />
-    </>
+    <TouchableWithoutFeedback
+      onPress={() => {
+        if (menuVisible) toggleMenu();
+      }}
+    >
+      <View style={styles.container}>
+        <Slot />
+        {menuVisible && (
+          <DropdownMenu
+            isVisible={menuVisible}
+            animation={menuAnimation}
+            closeMenu={toggleMenu}
+          />
+        )}
+        <MenuButton onPress={toggleMenu} />
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#FFFFFF",
-    opacity: 0.76,
   },
 });
