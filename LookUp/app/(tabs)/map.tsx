@@ -1,109 +1,104 @@
-import { StyleSheet, Image, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+export default function MapScreen() {
+  // default to false for mixed reality mode initially for easier load on phones
+  const [isMixedReality, setIsMixedReality] = useState(false);
+  
+  // Uses the built-in permission hook from expo-camera for camera usage
+  const [permission, requestPermission] = useCameraPermissions(); 
+  
+  // set the default camera to the back camera.
+  const [facing, setFacing] = useState<CameraType>('back'); 
 
-export default function TabTwoScreen() {
+  const toggleMode = () => setIsMixedReality(!isMixedReality); // function for button to swap between camera and MxR
+
+  // thinking:
+  // 1. check if we have permission to use the camera
+  // 2. if we do, show the camera view
+  // 3. if we don't, show a message saying we need permission, and display a holding screen
+  // 4. if we are in MxR mode, and they press the button, switch to map mode, with map placeholder view.
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <View style={styles.container}>
+      // 1.
+      {isMixedReality ? ( 
+        permission?.status === 'granted' ? (
+          
+          // 2.
+          <CameraView style={styles.camera}> 
+            {/* Camera Mode */} 
+          </CameraView>
+        ) : 
+        // 3.
+        (
+          <View style={styles.permissionContainer}> 
+            <Text>No access to camera</Text>
+            <Button title="Grant Permission" onPress={requestPermission} />
+          </View>
+        )
+      ) : (
+        <View style={styles.mapContainer}>
+          {/* Map Mode */}
+          <Text style={styles.placeholderText}>Map Placeholder</Text>
+        </View>
+      )}
+
+      {/* Ensure the button is ALWAYS in the same place, regardless of the mode */}
+      <View style={styles.buttonContainer}>
+        <Button
+          title={isMixedReality ? 'Switch to Map' : 'Switch to Mixed Reality'} // 4.
+          onPress={toggleMode}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Map</ThemedText>
-      </ThemedView>
-      <ThemedText>This screen will boast a live map on it, it's currently based on the default 'explore' page that comes with Expo</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user's current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      </View>
+    </View>
   );
 }
 
+// general styles
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: 
+    { 
+      flex: 1 
+    },
+  mapContainer: 
+    { 
+      // make map view take up whole screen
+      flex: 1, 
+      backgroundColor: '#d0e0f0', 
+      justifyContent: 'center', 
+      alignItems: 'center' 
+    },
+  placeholderText: 
+  { 
+    fontSize: 20, 
+    color: '#555' 
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  camera: 
+  { 
+    // make camera view take up whole screen
+    flex: 1 
+  },
+  overlay: 
+  { 
+    position: 'absolute', 
+    bottom: 50, 
+    alignSelf: 'center', 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    padding: 10, 
+    borderRadius: 5 
+  },
+  permissionContainer: 
+  { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: '10%', // Adjusts based on screen size (avoids navigation bar issues)
+    left: 0,
+    right: 0,
+    alignItems: 'center', // Centers button horizontally
   },
 });
