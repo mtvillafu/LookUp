@@ -1,79 +1,70 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
+import { Ionicons } from "@expo/vector-icons"; 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Ionicons } from "@expo/vector-icons"; // Import the icons we intend to use
+import { Colors } from '@/constants/Colors';
+import { LoginModalProvider, useLoginModal } from '@/context/LoginModalContext'; // Import Context Provider and Hook
+import LoginModal from '@/components/LoginModal'; // Import Modal Component
+import 'react-native-reanimated'; // For Navigation Animations
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  return (
+    <LoginModalProvider> {/* Wrap the entire layout */}
+      <MainLayout colorScheme={colorScheme ?? 'light'} />
+      <LoginModal /> {/* Ensure the modal is always available */}
+    </LoginModalProvider>
+  );
+}
+
+// Separate MainLayout to avoid calling useLoginModal before it's wrapped
+function MainLayout({ colorScheme }: { colorScheme: 'light' | 'dark' }) {
+  const { showLoginModal } = useLoginModal(); // Now it's inside the provider
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
+          ios: { position: 'absolute' },
           default: {},
         }),
-      }}>
-      <Tabs.Screen
-        name="search"
-        options={{ 
+      }}
+    >
+      <Tabs.Screen name="search" options={{ 
           title: 'Search', 
-          tabBarIcon: ({ color }) => 
-          <Ionicons
-              name='search'
-              size={24}
-              color={color}
-          /> }}
+          tabBarIcon: ({ color }) => <Ionicons name='search' size={24} color={color} />
+        }}
       />
-      <Tabs.Screen
-        name="favorites"
-        options={{ 
+      <Tabs.Screen name="favorites" options={{ 
           title: 'Favorites', 
-          tabBarIcon: ({ color }) => 
-          <Ionicons
-              name='star'
-              size={24}
-              color={color}
-          /> }}
+          tabBarIcon: ({ color }) => <Ionicons name='star' size={24} color={color} />
+        }}
       />
-      <Tabs.Screen
-        name="map"
-        options={{ 
+      <Tabs.Screen name="map" options={{ 
           title: 'Map', 
-          tabBarIcon: ({ color }) => 
-          <Ionicons
-              name="map"
-              size={24}
-              color={color}
-          /> }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home (will be account)',
-          tabBarIcon: ({ color }) => 
-          <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="map" size={24} color={color} />
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="index"
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault(); // Prevent navigation, which this normally defaults to
+            showLoginModal(); // Open login modal
+          },
+        }}
         options={{
-          title: 'Explore (will be settings)',
-          tabBarIcon: ({ color }) => 
-          <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Account',
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen name="explore" options={{ 
+          title: 'Settings', 
+          tabBarIcon: ({ color }) => <Ionicons name="settings" size={24} color={color} />
         }}
       />
     </Tabs>
