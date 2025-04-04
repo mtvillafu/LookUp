@@ -2,34 +2,36 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import { BlurView } from 'expo-blur';
 
-// Get the screen width
+// Get the screen width and height
 const screenWidth = Dimensions.get('window').width;
+const screenHeight = Dimensions.get('window').height;
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useBouncingBox } from '@/hooks/useBouncingBox'; // bouncing red box for debugging overlays
 
 export default function MapScreen() {
-
-  // Default to false for mixed reality mode iniitally for load on phones
+  // Default to false for mixed reality mode initially for load on phones
   const [isMixedReality, setIsMixedReality] = useState(false);
 
-  // uses the built-in permission hook from expo-camera for camera usage
+  // Uses the built-in permission hook from expo-camera for camera usage
   const [permission, requestPermission] = useCameraPermissions();
 
-  // set the default camera facing to back
+  // Set the default camera facing to back
   const [facing, setFacing] = useState<CameraType>('back');
 
   // Function for button to swap between camera and MxR
   const toggleMode = () => setIsMixedReality(!isMixedReality);
 
   // Call our hook for the placeholder bouncing box
-  // in the final version, this will wrap around planes in the MxR view, and change size dynamically
   const bouncingPosition = useBouncingBox(240); // (size: 240)
 
-  // get the screen width
+  // Get the screen width
   const [placement, setPlacement] = useState<'left' | 'right'>('right');
 
   // Tooltip Init
   const tooltipOffset = useRef(new Animated.Value(250)).current; // default on the right side
+  const flipLeftDimensions = -175; // offset for left side
+  const flipRightDimensions = 250; // offset for right side
+  const flipDuration = 200; // duration for flip animation in ms
   const lastSide = useRef<'left' | 'right'>('right'); // track last position of tooltip
 
   // Edge detection listener for tooltip. If the box is on the left side, move the tooltip to the right, and vice versa.
@@ -38,54 +40,136 @@ export default function MapScreen() {
       if (value > screenWidth - 450 && lastSide.current !== 'left') {
         lastSide.current = 'left';
         Animated.timing(tooltipOffset, {
-          toValue: -250, // flip to left
-          duration: 200,
+          toValue: -230, // flip to left
+          duration: flipDuration,
           easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: false,
         }).start();
       } else if (value < 240 && lastSide.current !== 'right') {
         lastSide.current = 'right';
         Animated.timing(tooltipOffset, {
-          toValue: 250, // flip to right
-          duration: 200,
+          toValue: flipRightDimensions, // flip to right
+          duration: flipDuration,
           easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           useNativeDriver: false,
         }).start();
       }
     });
-  
+
     return () => {
       bouncingPosition.x.removeListener(listenerId);
     };
   }, []);
 
-  // ========================= CAMERA DISPLAY && CONTROL: =========================
-  // 1. check if we have permission to use the camera
-  // 2. if we do, show the camera view
-  // 2a. if we're on camera view, show the bouncing box
-  // 3. if we don't, show a message saying we need permission, and display a holding screen
-  // 4. if we are in MxR mode, and they press the button, switch to map mode, with map placeholder view.
+  // ========================= PLANE EXAMPLE TRACKING && TOOLTIP =========================
+  const [debugBoxes, setDebugBoxes] = useState 
+  <{
+    id: number;
+    position: Animated.ValueXY;
+    tooltipOffset: Animated.Value;
+    lastSide: 'left' | 'right';
+    showTooltip: boolean;
+  }[]
+  >([]);
+
+  // Function to spawn a new debug box for following planes
+  // the ID is determined based on the datetime, so it is unique
+  // The position is randomized to be off-screen on the left side, and the Y position is randomized to be anywhere on the screen
+  const spawnDebugBox = () => {
+  const id = Date.now();
+  const randomY = Math.random() * (screenHeight - 240);
+  const position = new Animated.ValueXY({ x: -240, y: randomY });
+  const tooltipOffset = new Animated.Value(250); // default to right
+  let lastSide: 'left' | 'right' = 'right';
+
+  // Initialize the box with offset and side tracking
+  setDebugBoxes(prev => [
+    ...prev,
+    {
+      id,
+      position,
+      tooltipOffset,
+      lastSide,
+      showTooltip: false,
+    },
+  ]);
+
+  // Animate the box across screen
+  Animated.timing(position.x, {
+    toValue: screenWidth + 240,
+    duration: 6000,
+    easing: Easing.linear,
+    useNativeDriver: false,
+  }).start();
+
+  // Tooltip visibility and edge detection flip logic
+  const listenerId = position.x.addListener(({ value }) => {
+    setDebugBoxes(prev =>
+      prev.map(box => {
+        if (box.id !== id) return box;
+
+        const fullyOnScreen = value >= 0 && value <= screenWidth - 240;
+
+        // If the box is fully on screen, show the tooltip - using logic to find which side it was on.
+        if (value > screenWidth - 450 && box.lastSide !== 'left') {
+          box.lastSide = 'left';
+          Animated.timing(box.tooltipOffset, {
+            toValue: flipLeftDimensions, // flip to left
+            duration: flipDuration,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+            useNativeDriver: false,
+          }).start();
+        } else if (value < 240 && box.lastSide !== 'right') {
+          box.lastSide = 'right';
+          Animated.timing(box.tooltipOffset, {
+            toValue: flipRightDimensions, // flip to right
+            duration: flipDuration,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+            useNativeDriver: false,
+          }).start();
+        }
+
+        return {
+          // Update the box with the new position
+          // SPREAD OPERATOR - this is a new object with the same properties as the old one, but with the updated position
+          // (I never get to use this in JS, this is awesome)
+          ...box,
+          showTooltip: fullyOnScreen,
+          lastSide: box.lastSide,
+          tooltipOffset: box.tooltipOffset,
+        };
+      })
+    );
+  });
+
+  // Clean up after it moves off screen
+  setTimeout(() => {
+    position.x.removeListener(listenerId);
+    setDebugBoxes(prev => prev.filter(box => box.id !== id));
+  }, 6500);
+  };
+
+
+  // ========================= CAMERA DISPLAY & CONTROL =========================
   return (
     <View style={styles.container}>
       {isMixedReality ? (
-        permission?.status === 'granted' ? ( // 1. If we're in MxR and we have permission to use the camera, show the camera view
+        permission?.status === 'granted' ? (
           <>
             <CameraView style={styles.camera} />
-              <Animated.View
-                style={[
-                  styles.redBox,
-                  {
-                    transform: bouncingPosition.getTranslateTransform(),
-                  },
-                ]}
-              />
-              <Animated.View
+            <Animated.View
+              style={[
+                styles.redBox,
+                {
+                  transform: bouncingPosition.getTranslateTransform(),
+                },
+              ]}
+            />
+            <Animated.View
               style={[
                 styles.infoBubble,
                 {
                   top: Animated.add(bouncingPosition.y, new Animated.Value(10)),
-
-                  // Position the tooltip relative to the box’s X
                   left: Animated.add(bouncingPosition.x, tooltipOffset),
                 },
               ]}
@@ -102,51 +186,72 @@ export default function MapScreen() {
           </>
         ) : (
           <View style={styles.permissionContainer}>
-            {/* 3. If we don't have permission, show a message and a button to request permission */}
-            <Text>No access to camera</Text>  
-            <Button title="Grant Permission" onPress={requestPermission} /> 
+            <Text>No access to camera</Text>
+            <Button title="Grant Permission" onPress={requestPermission} />
           </View>
         )
       ) : (
         <View style={styles.mapContainer}>
-          {/* 4. If we're not in MxR mode, show the map placeholder */}
           <Text style={styles.placeholderText}>Map Placeholder</Text>
         </View>
       )}
 
-      {/* Button to toggle between modes, we ensure that it's always in the same place, regardless of mode. */}
+      {/* Button to toggle between modes */}
       <View style={styles.buttonContainer}>
         <Button
-          title={isMixedReality ? 'Switch to Map' : 'Switch to Mixed Reality'} // if we're in MxR, show the map button, otherwise show the MxR button
+          title={isMixedReality ? 'Switch to Map' : 'Switch to Mixed Reality'}
           onPress={toggleMode}
         />
+        {/* Button to spawn a new debug box */}
+        <Button title="Spawn Debug Box" onPress={spawnDebugBox} />
       </View>
+
+      {/* Render debug boxes */}
+      {debugBoxes.map(box => (
+        <React.Fragment key={box.id}>
+          <Animated.View
+            style={[
+              styles.redBox,
+              { transform: box.position.getTranslateTransform() },
+            ]}
+          />
+          {box.showTooltip && (
+            <Animated.View
+              style={[
+                styles.infoBubble,
+                {
+                  top: Animated.add(box.position.y, new Animated.Value(10)),
+                  left: Animated.add(box.position.x, box.tooltipOffset),
+                },
+              ]}
+            >
+              <BlurView intensity={50} tint="dark" style={styles.flightCard}>
+                <Text style={styles.flightTitle}>DEBUG BOX 🧪</Text>
+                <Text style={styles.route}>← → Path</Text>
+                <Text style={styles.arrival}>Testing Tooltip Range</Text>
+                <View style={styles.detailsButton}>
+                  <Text style={styles.detailsText}>Tracking</Text>
+                </View>
+              </BlurView>
+            </Animated.View>
+          )}
+        </React.Fragment>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1 
-  },
+  container: { flex: 1 },
   mapContainer: {
     flex: 1,
     backgroundColor: '#d0e0f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { 
-    fontSize: 20, 
-    color: '#555' 
-  },
-  camera: { 
-    flex: 1 
-  },
-  permissionContainer: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
+  placeholderText: { fontSize: 20, color: '#555' },
+  camera: { flex: 1 },
+  permissionContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   buttonContainer: {
     position: 'absolute',
     bottom: '10%',
@@ -170,7 +275,7 @@ const styles = StyleSheet.create({
   },
   flightCard: {
     borderRadius: 16,
-    overflow: 'hidden', // required for BlurView to respect borders
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.21)',
     backgroundColor: 'rgba(255, 255, 255, 0.27)',
@@ -178,7 +283,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 30,
-    elevation: 8, // Android shadow
+    elevation: 8,
     padding: 16,
     zIndex: 99,
   },
@@ -208,5 +313,5 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: '600',
   },
-  
 });
+
