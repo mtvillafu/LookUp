@@ -6,7 +6,7 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 
 module.exports.setApp = function (app, client) {
-  app.post('/proxy-detect', upload.single('image'), async (req, res) => {
+  app.post('/api/proxy-detect', upload.single('image'), async (req, res) => {
     try {
       const confidence = 0.5;
       const iou = 0.3;
