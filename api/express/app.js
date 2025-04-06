@@ -15,8 +15,10 @@ try {
 	console.error(e);
 }
 
-const detectProxyAPI = require('./api/detect.js');
-detectProxyAPI.setApp(app, client); 
+const detectAPI = require('./api/detect.js');
+detectAPI.setApp(app, client); 
+const usersAPI = require('./api/users.js');
+usersAPI.setApp(app, client);
 
 app.listen(PORT, () => {
   console.log(`Express API running at http://localhost:${PORT}`);
