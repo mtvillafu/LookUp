@@ -1,5 +1,6 @@
 require('express');
 require('mongodb');
+const { ObjectId } = require('mongodb');
 require("dotenv").config();
 const md5 = require('./md5');
 // const nodemailer = require('nodemailer');
@@ -107,7 +108,34 @@ module.exports.setApp = function (app, client) {
 
     // Get User API
     app.get('/api/users/:userId', async (req, res, next) => {
+        let userId = req.params.userId;
+        let error = '';
+        let db;
 
+        try {
+            db = client.db('app');
+
+            // Convert userId string to ObjectId
+            const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+            if (!user) {
+                error = "User not found";
+                return res.status(404).json({ id: -1, email: '', username: '', error });
+            }
+
+            // Return user info
+            return res.status(200).json({
+                id: user._id,
+                email: user.email,
+                username: user.username,
+                error: ''
+            });
+
+        } catch (e) {
+            console.error(e);
+            error = "Invalid user ID or server error";
+            return res.status(500).json({ id: -1, email: '', username: '', error });
+        }
     });
 
 }
