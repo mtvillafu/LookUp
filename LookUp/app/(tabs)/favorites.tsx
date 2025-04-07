@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLoginModal } from "@/context/LoginModalContext"; // Import the modal context
+import { useRouter } from "expo-router"; // Import useRouter for navigation
 
 const FavoritesMenu: React.FC = () => {
   const { showLoginModal } = useLoginModal(); // Access the showLoginModal function from context
+  const router = useRouter(); // Initialize the router for navigation
   const flights = Array(8).fill("#1111 JP → NY 02/12");
 
   return (
@@ -43,9 +45,12 @@ const FavoritesMenu: React.FC = () => {
             />
             <Text style={styles.text}>{item}</Text>
 
-            <View style={styles.arrowContainer}>
+            <TouchableOpacity
+              style={styles.arrowContainer}
+              onPress={() => router.push("/flightDetails")} // Directly redirect to the flight details page
+            >
               <Ionicons name="arrow-forward" size={20} color="black" />
-            </View>
+            </TouchableOpacity>
           </View>
         )}
       />
