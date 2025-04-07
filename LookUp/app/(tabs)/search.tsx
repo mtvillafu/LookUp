@@ -18,6 +18,7 @@ const SearchMenu: React.FC<SearchMenuProps> = ({ closeSearch }) => {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.title}>Search</Text>
       <View style={styles.searchBar}>
         <TextInput
           style={styles.input}
@@ -45,23 +46,23 @@ const SearchMenu: React.FC<SearchMenuProps> = ({ closeSearch }) => {
           </View>
         )}
       />
-
-      <TouchableOpacity style={styles.closeButton} onPress={closeSearch}>
-        <Ionicons name="close" size={30} color="white" />
-      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "stretch",
+    backgroundColor: "#1E1E1E",
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#1E1E1E",
-    paddingVertical: 40,
+    paddingVertical: 55,
+    marginBottom: 45,
     paddingHorizontal: 20,
     zIndex: 999,
   },
@@ -105,13 +106,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  closeButton: {
-    position: "absolute",
-    bottom: 40,
-    alignSelf: "center",
-    padding: 15,
-    borderRadius: 30,
-    backgroundColor: "#333",
+  title: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "bold",
   },
 });
 
