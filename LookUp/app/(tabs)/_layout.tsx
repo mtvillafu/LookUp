@@ -21,10 +21,9 @@ export default function RootLayout() {
 
 // Separate MainLayout to avoid calling useLoginModal before it's wrapped
 function MainLayout({ colorScheme }: { colorScheme: 'light' | 'dark' }) {
-  const { showLoginModal } = useLoginModal(); // Now it's inside the provider
-
   return (
     <Tabs
+      initialRouteName="map" // Set "map" as the default tab
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
@@ -47,19 +46,6 @@ function MainLayout({ colorScheme }: { colorScheme: 'light' | 'dark' }) {
       <Tabs.Screen name="map" options={{ 
           title: 'Map', 
           tabBarIcon: ({ color }) => <Ionicons name="map" size={24} color={color} />
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault(); // Prevent navigation, which this normally defaults to
-            showLoginModal(); // Open login modal
-          },
-        }}
-        options={{
-          title: 'Account',
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
         }}
       />
       <Tabs.Screen name="explore" options={{ 

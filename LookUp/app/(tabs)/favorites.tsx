@@ -6,22 +6,22 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  Button,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons"; // Import the icons we intend to use
+import { Ionicons } from "@expo/vector-icons";
+import { useLoginModal } from "@/context/LoginModalContext"; // Import the modal context
 
-// instantiate the interface's props
-interface FavoritesMenuProps {
-  closeFavorites: () => void;
-}
-
-// define the favoritesMenu, currently it holds 8 entries.
-const FavoritesMenu: React.FC<FavoritesMenuProps> = ({ closeFavorites }) => {
+const FavoritesMenu: React.FC = () => {
+  const { showLoginModal } = useLoginModal(); // Access the showLoginModal function from context
   const flights = Array(8).fill("#1111 JP → NY 02/12");
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Favorites</Text>
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>Favorites</Text>
+        <TouchableOpacity style={styles.userButton} onPress={showLoginModal}>
+          <Ionicons name="person" size={20} color="white" />
+        </TouchableOpacity>
+      </View>
       <View style={styles.searchBar}>
         <TextInput
           style={styles.input}
@@ -49,10 +49,6 @@ const FavoritesMenu: React.FC<FavoritesMenuProps> = ({ closeFavorites }) => {
           </View>
         )}
       />
-
-      <TouchableOpacity style={styles.closeButton} onPress={closeFavorites}>
-        <Ionicons name="close" size={30} color="white" />
-      </TouchableOpacity>
     </View>
   );
 };
@@ -68,9 +64,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingVertical: 40,
+    paddingVertical: 55,
+    marginBottom: 45,
     paddingHorizontal: 20,
     zIndex: 999,
+  },
+  titleContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  userButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#333",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "absolute",
+    right: 0,
   },
   searchBar: {
     flexDirection: "row",
@@ -112,14 +125,6 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     justifyContent: "center",
     alignItems: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    bottom: 40,
-    alignSelf: "center",
-    padding: 15,
-    borderRadius: 30,
-    backgroundColor: "#333",
   },
   title: {
     color: "white",
