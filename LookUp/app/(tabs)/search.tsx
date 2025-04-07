@@ -8,12 +8,15 @@ import {
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router"; // Import useRouter for navigation
 
 interface SearchMenuProps {
   closeSearch: () => void;
 }
 
 const SearchMenu: React.FC<SearchMenuProps> = ({ closeSearch }) => {
+  const router = useRouter(); // Initialize router for navigation
+
   const flights = Array(8).fill("#1111 JP → NY 02/12");
 
   return (
@@ -40,9 +43,12 @@ const SearchMenu: React.FC<SearchMenuProps> = ({ closeSearch }) => {
             />
             <Text style={styles.text}>{item}</Text>
 
-            <View style={styles.arrowContainer}>
+            <TouchableOpacity
+              style={styles.arrowContainer}
+              onPress={() => router.push("/flightDetails")} // Redirect to flight details
+            >
               <Ionicons name="arrow-forward" size={20} color="black" />
-            </View>
+            </TouchableOpacity>
           </View>
         )}
       />
