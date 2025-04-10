@@ -132,7 +132,7 @@ module.exports.setApp = function (app, client) {
                 verifyToken: verificationToken
             });
 
-            const verifyLink = appName + `/api/verify-link?token=${verificationToken}`;
+            const verifyLink = appName + `/api/verify-link/${verificationToken}`;
             
             await transporter.sendMail({
                 to: email,
@@ -191,7 +191,28 @@ module.exports.setApp = function (app, client) {
     });      
 
     // Verify User (URL)
-
+    app.get('/api/verify-link/:token', async (req, res) => {
+        const { token } = req.params;
+        const db = client.db('app');
+        
+        try {
+            const user = await db.collection('users').findOne({ verifyToken: token });
+        
+            if (!user) {
+                return res.status(400).send('Invalid verification token');
+            }
+        
+            await db.collection('users').updateOne(
+                { _id: user._id },
+                { $set: { isVerified: true }, $unset: { verifyToken: "", verifyCode: "" } }
+            );
+        
+            res.send('Email verified successfully!');
+        } catch (e) {
+            console.error(e);
+            res.status(500).send({ error: `Server error during verification, error: ${e}`});
+        }
+    });      
 
     // Resend Email Verification
 
