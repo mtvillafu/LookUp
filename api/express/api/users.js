@@ -215,7 +215,64 @@ module.exports.setApp = function (app, client) {
     });      
 
     // Resend Email Verification
-
+    app.post('/api/resend-verification', async (req, res) => {
+        const { login } = req.body;
+        const db = client.db('app');
+        
+        try {
+            let user = await db.collection('users').findOne({ email: login });
+            if (!user) {
+                user = await db.collection('users').findOne({ username: login });
+            }
+        
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+        
+            if (user.isVerified) {
+                return res.status(400).json({ error: 'User is already verified' });
+            }
+        
+            const newCode = generate6DigitCode();
+            const newToken = generateToken();
+        
+            // Update user with new code/token
+            await db.collection('users').updateOne(
+                { _id: user._id },
+                {
+                    $set: {
+                    verifyCode: newCode,
+                    verifyToken: newToken
+                    }
+                }
+            );
+        
+            const verifyLink = appName + `/api/verify-link/${newToken}`;
+        
+            await transporter.sendMail({
+                to: user.email,
+                subject: 'Resend Email Verification',
+                html: `
+                    <h3>Verify your email</h3>
+                    <p>Click <a href="${verifyLink}">here</a> to verify your email.</p>
+                    <p>Or use this 6-digit code in the mobile app: <strong>${newCode}</strong></p>
+                `
+                }, (err, info) => {
+                if (err) {
+                    console.error('Resend email failed:', err);
+                    return res.status(500).json({ error: 'Failed to send verification email' });
+                } else {
+                    console.log('Verification email resent:', info.response);
+                    return res.status(200).json({ message: 'Verification email resent successfully' });
+                }
+            });
+        
+        } catch (e) {
+            console.error(e);
+            return res.status(500).json({ error: `Server error during resend, error: ${e}` });
+        }
+    });
+      
 
     // Forgot Password (Send a link)
 
