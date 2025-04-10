@@ -2,7 +2,9 @@ require('express');
 require('mongodb');
 const { ObjectId } = require('mongodb');
 require("dotenv").config();
-const md5 = require('./md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
 // const nodemailer = require('nodemailer');
 
 module.exports.setApp = function (app, client) {
@@ -13,7 +15,7 @@ module.exports.setApp = function (app, client) {
         let username = '';
         let error = '';
         const login = req.body.login;
-        const password = md5(req.body.password);
+        const password = req.body.password;
         let db;
 
         try {
@@ -28,7 +30,8 @@ module.exports.setApp = function (app, client) {
 
 
         if (resultsUsername.length > 0) { //Login matched a user's username
-            if (resultsUsername[0].password === password) { //Password matched
+            const match = await bcrypt.compare(password, resultsUsername[0].password);
+            if (match) { //Password matched
                 id = resultsUsername[0]._id;
                 email = resultsUsername[0].email;
                 username = resultsUsername[0].username;
@@ -40,7 +43,8 @@ module.exports.setApp = function (app, client) {
                 res.status(401).json(ret);
             }
         } else if (resultsEmail.length > 0) { //Login matched a user's email
-            if (resultsEmail[0].password === password) { //Password matched
+            const match = await bcrypt.compare(password, resultsEmail[0].password);
+            if (match) { //Password matched
                 id = resultsEmail[0]._id;
                 confirmation = resultsEmail[0].confirmation;
                 email = resultsEmail[0].email;
@@ -83,11 +87,13 @@ module.exports.setApp = function (app, client) {
                 return res.status(409).json({ id: -1, email: '', username: '', error });
             }
 
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+
             // Insert new user
             const result = await db.collection('users').insertOne({
                 email,
                 username,
-                password: md5(password), 
+                password: hashedPassword, 
             });
 
             const resultId = result.insertedId;
