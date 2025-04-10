@@ -167,7 +167,28 @@ module.exports.setApp = function (app, client) {
     });
 
     // Verify User (6 digit)
-
+    app.post('/api/verify-code', async (req, res) => {
+        const { username, code } = req.body;
+        const db = client.db('app');
+        
+        try {
+            const user = await db.collection('users').findOne({ username: username, verifyCode: code });
+        
+            if (!user) {
+                return res.status(400).json({ error: 'Invalid code' });
+            }
+        
+            await db.collection('users').updateOne(
+                { _id: user._id },
+                { $set: { isVerified: true }, $unset: { verifyToken: "", verifyCode: "" } }
+            );
+        
+            res.status(200).json({ message: 'Email verified successfully' });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: `Server error during verification, error: ${e}`});
+        }
+    });      
 
     // Verify User (URL)
 
