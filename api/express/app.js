@@ -1,6 +1,6 @@
-const express = require('express');
+const express = require("express");
 require("dotenv").config();
-const path = require('path');
+const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -10,15 +10,15 @@ const url = process.env.MONGODB_URI;
 const MongoClient = require("mongodb").MongoClient;
 var client;
 try {
-	client = new MongoClient(url);
-	client.connect;
+  client = new MongoClient(url);
+  client.connect;
 } catch (e) {
-	console.error(e);
+  console.error(e);
 }
 
-const detectAPI = require('./api/detect.js');
-detectAPI.setApp(app, client); 
-const usersAPI = require('./api/users.js');
+const detectAPI = require("./api/detect.js");
+detectAPI.setApp(app, client);
+const usersAPI = require("./api/users.js");
 usersAPI.setApp(app, client);
 
 app.listen(PORT, () => {
