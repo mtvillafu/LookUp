@@ -34,22 +34,22 @@ function MainLayout({ colorScheme }: { colorScheme: 'light' | 'dark' }) {
       }}
     >
       <Tabs.Screen name="search" options={{ 
-          title: 'Search', 
+          title: '', 
           tabBarIcon: ({ color }) => <Ionicons name='search' size={24} color={color} />
         }}
       />
       <Tabs.Screen name="favorites" options={{ 
-          title: 'Favorites', 
+          title: '', 
           tabBarIcon: ({ color }) => <Ionicons name='star' size={24} color={color} />
         }}
       />
       <Tabs.Screen name="map" options={{ 
-          title: 'Map', 
+          title: '', 
           tabBarIcon: ({ color }) => <Ionicons name="map" size={24} color={color} />
         }}
       />
-      <Tabs.Screen name="explore" options={{ 
-          title: 'Settings', 
+      <Tabs.Screen name="settings" options={{ 
+          title: '', 
           tabBarIcon: ({ color }) => <Ionicons name="settings" size={24} color={color} />
         }}
       />
