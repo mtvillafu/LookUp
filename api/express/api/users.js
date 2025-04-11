@@ -28,7 +28,7 @@ function generateToken() {
 
 module.exports.setApp = function (app, client) {
     // Login API
-    app.post('/api/login', async (req, res, next) => {
+    app.post('/api/login', async (req, res) => {
         let id = -1;
         let email = '';
         let username = '';
@@ -96,7 +96,7 @@ module.exports.setApp = function (app, client) {
     });
 
     // Register API
-    app.post('/api/register', async (req, res, next) => {
+    app.post('/api/register', async (req, res) => {
         const { email, username, password } = req.body;
         let error = '';
         let db;
@@ -275,9 +275,88 @@ module.exports.setApp = function (app, client) {
       
 
     // Forgot Password (Send a link)
-
+    app.post('/api/forgot-password-email', async (req, res) => {
+        const { email } = req.body;
+        const db = client.db('app');
+    
+        try {
+            const user = await db.collection('users').findOne({ email });
+    
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+    
+            const resetCode = generate6DigitCode();
+            const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
+    
+            await db.collection('users').updateOne(
+                { _id: user._id },
+                {
+                    $set: {
+                        resetCode,
+                        resetCodeExpires: codeExpires
+                    }
+                }
+            );
+    
+            await transporter.sendMail({
+                to: email,
+                subject: 'Your Password Reset Code',
+                html: `
+                    <h3>Reset Your Password</h3>
+                    <p>Use the following code to reset your password in the mobile app:</p>
+                    <h2>${resetCode}</h2>
+                    <p>This code expires in 10 minutes.</p>
+                `
+            });
+    
+            res.status(200).json({ message: 'Reset code sent to email' });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: `Error sending reset code: ${e}` });
+        }
+    });
 
     // Forgot Password (Process)
+    app.post('/api/forgot-password-process', async (req, res) => {
+        const { email, code, newPassword } = req.body;
+        const db = client.db('app');
+    
+        try {
+            const userEmail = await db.collection('users').findOne({
+                email
+            });
+
+            if(!userEmail){
+                return res.status(404).json({ error: 'User not found' });
+            }
+            
+            const user = await db.collection('users').findOne({
+                email,
+                resetCode: code,
+                resetCodeExpires: { $gt: new Date() }
+            });
+    
+            if (!user) {
+                return res.status(403).json({ error: 'Invalid or expired reset code' });
+            }
+    
+            const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    
+            await db.collection('users').updateOne(
+                { _id: user._id },
+                {
+                    $set: { password: hashedPassword },
+                    $unset: { resetCode: "", resetCodeExpires: "" }
+                }
+            );
+    
+            res.status(200).json({ message: 'Password has been reset successfully' });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: `Error resetting password: ${e}` });
+        }
+    });    
 
     // Get User API
     app.get('/api/users/:userId', async (req, res, next) => {
