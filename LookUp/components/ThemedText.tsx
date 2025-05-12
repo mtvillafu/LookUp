@@ -1,6 +1,10 @@
-import { Text, type TextProps, StyleSheet } from 'react-native';
+// This page holds the preset for what ThemedText should look like / is registered as. It drives the light / dark mode.
 
+import { Text, type TextProps, StyleSheet, TextStyle } from 'react-native';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { ThemeProvider, useAppTheme } from '@/theme/ThemeContext';
+import { Colors } from '@/constants/Colors';
+
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
@@ -9,18 +13,23 @@ export type ThemedTextProps = TextProps & {
 };
 
 export function ThemedText({
+
   style,
   lightColor,
   darkColor,
   type = 'default',
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  
+  const { theme, toggleTheme } = useAppTheme();
+  const themeColors = Colors[theme];
+  
+  // const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
 
   return (
     <Text
       style={[
-        { color },
+        { color: themeColors.text },
         type === 'default' ? styles.default : undefined,
         type === 'title' ? styles.title : undefined,
         type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
