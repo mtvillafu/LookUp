@@ -6,7 +6,7 @@ import { BlurView } from 'expo-blur';
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { useBouncingBox } from '@/hooks/useBouncingBox'; // bouncing red box for debugging overlays
+import { useBouncingBox } from '@/hooks/useBouncingBox'; // bouncing red box for overlays
 
 export default function MapScreen() {
   // Default to false for mixed reality mode initially for load on phones
@@ -82,7 +82,7 @@ export default function MapScreen() {
   const tooltipOffset = new Animated.Value(250); // default to right
   let lastSide: 'left' | 'right' = 'right';
 
-  // Initialize the box with offset and side tracking
+  // Initialize the box with offset and side tracking, use spread operator to enumerate && add to array
   setDebugBoxes(prev => [
     ...prev,
     {
@@ -103,11 +103,13 @@ export default function MapScreen() {
   }).start();
 
   // Tooltip visibility and edge detection flip logic
+  // Listen for when position.x changes to be on screen, and if it is on screen, show the tooltip
   const listenerId = position.x.addListener(({ value }) => {
     setDebugBoxes(prev =>
       prev.map(box => {
         if (box.id !== id) return box;
 
+        // Determine whether or not the box is actually on-screen.
         const fullyOnScreen = value >= 0 && value <= screenWidth - 240;
 
         // If the box is fully on screen, show the tooltip - using logic to find which side it was on.
@@ -153,10 +155,14 @@ export default function MapScreen() {
   // ========================= CAMERA DISPLAY & CONTROL =========================
   return (
     <View style={styles.container}>
+      
+      {/* We check if mixed reality is enabled and permission is ranted, if so - allow for MxR Access. */}
       {isMixedReality ? (
         permission?.status === 'granted' ? (
           <>
             <CameraView style={styles.camera} />
+
+            {/* This animated view handles the moving of the red-box */}
             <Animated.View
               style={[
                 styles.redBox,
@@ -165,6 +171,8 @@ export default function MapScreen() {
                 },
               ]}
             />
+
+            {/* This animated view handles the tooltip for the red-box */}
             <Animated.View
               style={[
                 styles.infoBubble,
@@ -184,12 +192,14 @@ export default function MapScreen() {
               </BlurView>
             </Animated.View>
           </>
+          // all well and good, finish up this end - if we don't have permission, hence the else statement below (line beneath this one)
         ) : (
           <View style={styles.permissionContainer}>
             <Text>No access to camera</Text>
             <Button title="Grant Permission" onPress={requestPermission} />
           </View>
         )
+        // furthermore, if we're on the map screen, just show the map.
       ) : (
         <View style={styles.mapContainer}>
           <Text style={styles.placeholderText}>Map Placeholder</Text>
