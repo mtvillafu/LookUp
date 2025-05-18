@@ -12,8 +12,20 @@ import { TapGestureHandler } from 'react-native-gesture-handler';
 // Use global theme context
 import { useAppTheme } from '@/theme/ThemeContext';
 import { Colors } from '@/constants/Colors';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-export default function SettingsScreen() {
+// Wrap the screen in GestureHandlerRootView for gesture support
+function withGestureHandlerRootView(Component: React.ComponentType) {
+  return function Wrapper(props: any) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Component {...props} />
+      </GestureHandlerRootView>
+    );
+  };
+}
+
+function SettingsScreen() {
   const [flightRadius, setFlightRadius] = useState(10);
 
   const { theme, toggleTheme } = useAppTheme();
@@ -98,6 +110,7 @@ export default function SettingsScreen() {
     </View>
   );
 }
+//}
 
 const styles = StyleSheet.create({
   titleContainer: {
@@ -129,3 +142,5 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
   },
 });
+
+export default withGestureHandlerRootView(SettingsScreen);
