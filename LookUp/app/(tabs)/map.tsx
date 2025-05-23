@@ -11,10 +11,16 @@ import { Switch } from 'react-native-gesture-handler';
 
 // For plane tracking switch
 import PlaneTrackingToggle from '@/components/PlaneTrackingToggle';
+import { ThemedText } from '@/components/ThemedText';
+
+// for mixed reality vs map switch
+import MixedRealityToggle from '@/components/MixedRealityToggle';
 
 export default function MapScreen() {
   // Default to false for mixed reality mode initially for load on phones
   const [isMixedReality, setIsMixedReality] = useState(false);
+  const toggleMixedReality = () => setIsMixedReality(!isMixedReality);
+  const mixedRealityScale = 1.8; // Change this value to scale the switch
 
   // Uses the built-in permission hook from expo-camera for camera usage
   const [permission, requestPermission] = useCameraPermissions();
@@ -231,8 +237,20 @@ export default function MapScreen() {
           <Text style={styles.placeholderText}>Map Placeholder</Text>
         </View>
       )}
-
       {/* Button to toggle between modes */}
+      <View style={{
+          position: 'absolute',
+          bottom: 50,
+          left: '50%',
+          transform: [{ translateX: -35 + mixedRealityScale }, { scale: mixedRealityScale }],
+          zIndex: 201,
+        }}>
+        <MixedRealityToggle
+          value={isMixedReality}
+          onToggle={toggleMixedReality}
+        />
+      </View>
+
       <View style={styles.buttonContainer}>
         <Button
           title={isMixedReality ? 'Switch to Map' : 'Switch to Mixed Reality'}
