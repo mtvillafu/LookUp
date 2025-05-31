@@ -17,16 +17,19 @@ import { ThemedText } from '@/components/ThemedText';
 import MixedRealityToggle from '@/components/MixedRealityToggle';
 
 export default function MapScreen() {
+
   // Default to false for mixed reality mode initially for load on phones
   const [isMixedReality, setIsMixedReality] = useState(false);
   const toggleMixedReality = () => setIsMixedReality(!isMixedReality);
-  const mixedRealityScale = 1.8; // Change this value to scale the switch
+  const mixedRealityScale = 1.8; // Change this value to scale the switch(es) that are present on the UI
 
   // Uses the built-in permission hook from expo-camera for camera usage
   const [permission, requestPermission] = useCameraPermissions();
 
   // Set the default camera facing to back
   const [facing, setFacing] = useState<CameraType>('back');
+  const captureInterval = 2000; // Interval for capturing images in milliseconds (2 seconds by default)
+  const cameraRef = useRef<CameraView>(null);
 
   // Function for button to swap between camera and MxR
   const toggleMode = () => setIsMixedReality(!isMixedReality);
@@ -48,6 +51,20 @@ export default function MapScreen() {
   const flipRightDimensions = 250; // offset for right side
   const flipDuration = 200; // duration for flip animation in ms
   const lastSide = useRef<'left' | 'right'>('right'); // track last position of tooltip
+
+  // payload for object detection API
+  // ================================== OBJECT DETECTION API PAYLOAD ================================== 
+  // const sendToObjectDetectionAPI = async (base64Image: string) => {
+  //   const response = await fetch('When we get the object detection API endpoint, put the link here via ENV or something', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ image: base64Image }),
+  //   });
+
+  //   const result = await response.json();
+  //   // FROM HERE, TAKE THE RESULT AND USE IT TO DEFINE THE LOCATION OF THE BOUNDING BOX.
+  // };
+  // ================================== END OBJECT DETECTION API PAYLOAD ==================================
 
   // Edge detection listener for tooltip. If the box is on the left side, move the tooltip to the right, and vice versa.
   useEffect(() => {
@@ -75,6 +92,32 @@ export default function MapScreen() {
       bouncingPosition.x.removeListener(listenerId);
     };
   }, []);
+
+  // ========================= CAMERA CAPTURE LOGIC =========================
+  // Here is where we capture images from the camera at a set interval
+  // useEffect(() => {
+
+  //   // define the interval function for capturing images
+  //   const interval = setInterval(async () => {
+
+  //     // we care that the user has granted permission to use of the camera, and that we're in mixed reality mode
+  //     if (isMixedReality && permission?.status === 'granted' && cameraRef.current) {
+  //       try {
+  //         // capture an image from the camera, if able to and send to API
+  //         const photo = await cameraRef.current.takePictureAsync({ base64: true });
+
+  //         // have to check if the photo has a base64 string, as it may not always be available
+  //         if (photo.base64) {
+  //           sendToObjectDetectionAPI(photo.base64);
+  //         }
+  //       } catch (error) {
+  //         console.error('Error capturing photo:', error);
+  //       }
+  //     }
+  //   }, captureInterval);
+  //   return () => clearInterval(interval);
+  // }, []);
+  // ========================= END CAMERA CAPTURE LOGIC ==========================
 
   // ========================= PLANE EXAMPLE TRACKING && TOOLTIP =========================
   const [debugBoxes, setDebugBoxes] = useState 
@@ -165,7 +208,6 @@ export default function MapScreen() {
     setDebugBoxes(prev => prev.filter(box => box.id !== id));
   }, 6500);
   };
-
 
   // ========================= CAMERA DISPLAY & CONTROL =========================
   return (
