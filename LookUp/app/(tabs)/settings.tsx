@@ -33,6 +33,25 @@ function SettingsScreen() {
 
   const [flightRadius, setFlightRadius] = useState(10);
 
+  // Sending the flight radius value to the backend
+  const updateFlightRadius = async (radius: number) => {
+    try {
+      const response = await fetch('PUT BACKEND_URL_HERE', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ flightRadius: radius }), // This is the payload!
+      });
+      if (!response.ok) {
+        throw new Error('failed to update flight radius');
+      }
+      // here is where we would handle the response.
+      } catch (error) {
+        console.error('Error updating flight radius:', error);
+    }
+  };
+
   const { theme, toggleTheme } = useAppTheme();
   const isDark = theme === 'dark';
 
@@ -85,7 +104,7 @@ function SettingsScreen() {
         {/* Placeholder picker in lieu of the slider below, since it's got a bug :P.*/}
         <Picker
           selectedValue={flightRadius}
-          onValueChange={(itemValue) => setFlightRadius(Number(itemValue))}
+          onValueChange={(itemValue) => updateFlightRadius(Number(itemValue))}
           style={{
             color: getInterpolatedColor(flightRadius),
             marginBottom: 8,
