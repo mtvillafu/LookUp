@@ -52,18 +52,35 @@ export default function MapScreen() {
   const flipDuration = 200; // duration for flip animation in ms
   const lastSide = useRef<'left' | 'right'>('right'); // track last position of tooltip
 
+  // =================================== PING SERVER FUNCTION ==================================
+  // We don't want to automatially refresh the API, so we have a button to do it manually.
+  const refreshAircraftData = async () => {
+    try {
+      const response = await fetch('APIENDPOINTHERE'); //  API endpoint
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log('API Response:', data);
+    } catch (error) {
+      console.error('Error pinging server:', error);
+    }
+  };
+
+  // =================================== END PING SERVER FUNCTION ==================================
+
   // payload for object detection API
   // ================================== OBJECT DETECTION API PAYLOAD ================================== 
-  // const sendToObjectDetectionAPI = async (base64Image: string) => {
-  //   const response = await fetch('When we get the object detection API endpoint, put the link here via ENV or something', {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ image: base64Image }),
-  //   });
+  const sendToObjectDetectionAPI = async (base64Image: string) => {
+    const response = await fetch('APIENDPOINTHERE', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image }),
+    });
 
-  //   const result = await response.json();
-  //   // FROM HERE, TAKE THE RESULT AND USE IT TO DEFINE THE LOCATION OF THE BOUNDING BOX.
-  // };
+    const result = await response.json();
+    // FROM HERE, TAKE THE RESULT AND USE IT TO DEFINE THE LOCATION OF THE BOUNDING BOX.
+  };
   // ================================== END OBJECT DETECTION API PAYLOAD ==================================
 
   // Edge detection listener for tooltip. If the box is on the left side, move the tooltip to the right, and vice versa.
@@ -95,28 +112,28 @@ export default function MapScreen() {
 
   // ========================= CAMERA CAPTURE LOGIC =========================
   // Here is where we capture images from the camera at a set interval
-  // useEffect(() => {
+  useEffect(() => {
 
-  //   // define the interval function for capturing images
-  //   const interval = setInterval(async () => {
+    // define the interval function for capturing images
+    const interval = setInterval(async () => {
 
-  //     // we care that the user has granted permission to use of the camera, and that we're in mixed reality mode
-  //     if (isMixedReality && permission?.status === 'granted' && cameraRef.current) {
-  //       try {
-  //         // capture an image from the camera, if able to and send to API
-  //         const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      // we care that the user has granted permission to use of the camera, and that we're in mixed reality mode
+      if (isMixedReality && permission?.status === 'granted' && cameraRef.current) {
+        try {
+          // capture an image from the camera, if able to and send to API
+          const photo = await cameraRef.current.takePictureAsync({ base64: true });
 
-  //         // have to check if the photo has a base64 string, as it may not always be available
-  //         if (photo.base64) {
-  //           sendToObjectDetectionAPI(photo.base64);
-  //         }
-  //       } catch (error) {
-  //         console.error('Error capturing photo:', error);
-  //       }
-  //     }
-  //   }, captureInterval);
-  //   return () => clearInterval(interval);
-  // }, []);
+          // have to check if the photo has a base64 string, as it may not always be available
+          if (photo.base64) {
+            sendToObjectDetectionAPI(photo.base64);
+          }
+        } catch (error) {
+          console.error('Error capturing photo:', error);
+        }
+      }
+    }, captureInterval);
+    return () => clearInterval(interval);
+  }, []);
   // ========================= END CAMERA CAPTURE LOGIC ==========================
 
   // ========================= PLANE EXAMPLE TRACKING && TOOLTIP =========================
@@ -300,6 +317,19 @@ export default function MapScreen() {
         />
         {/* Button to spawn a new debug box */}
         <Button title="Spawn Debug Box" onPress={spawnDebugBox} />
+      </View>
+
+      {/* Button to ping the API */}
+      <View style={{
+        position: 'absolute',
+        top: '10%',
+        left: '10%',
+        zIndex: 200, 
+      }}>
+        <Button
+          title="(DEBUG) Refresh Aircraft Data"
+          onPress={ refreshAircraftData }
+        />
       </View>
 
       {/* Render debug boxes */}
