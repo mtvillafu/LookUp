@@ -21,7 +21,7 @@ export default function MapScreen() {
   // Default to false for mixed reality mode initially for load on phones
   const [isMixedReality, setIsMixedReality] = useState(false);
   const toggleMixedReality = () => setIsMixedReality(!isMixedReality);
-  const mixedRealityScale = 1.8; // Change this value to scale the switch(es) that are present on the UI
+  const mixedRealityScale = 1.4; // Change this value to scale the switch(es) that are present on the UI
 
   // Uses the built-in permission hook from expo-camera for camera usage
   const [permission, requestPermission] = useCameraPermissions();
@@ -43,7 +43,7 @@ export default function MapScreen() {
   // Variables for switch between satellite tracking and plane tracking
   const [isTrackingPlanes, setIsTrackingPlanes] = useState(true);
   const toggleTrackingPlanes = () => setIsTrackingPlanes(!isTrackingPlanes);
-  const planeSwitchScale = 1.8; // Change this value to scale the switch
+  const planeSwitchScale = 1.4; // Change this value to scale the switch
 
   // Tooltip Init
   const tooltipOffset = useRef(new Animated.Value(250)).current; // default on the right side
