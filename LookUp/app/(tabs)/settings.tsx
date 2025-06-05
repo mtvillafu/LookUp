@@ -6,8 +6,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import Slider from '@react-native-community/slider';
+// import Slider from '@/components/Slider'; // this is currently bugged as of .20 version of react. it should be fixed soon, hopefully.
+import { Picker } from '@react-native-picker/picker';
 
-import { TapGestureHandler } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 // Use global theme context
 import { useAppTheme } from '@/theme/ThemeContext';
@@ -26,7 +28,29 @@ function withGestureHandlerRootView(Component: React.ComponentType) {
 }
 
 function SettingsScreen() {
+  // for Picker
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+
   const [flightRadius, setFlightRadius] = useState(10);
+
+  // Sending the flight radius value to the backend
+  const updateFlightRadius = async (radius: number) => {
+    try {
+      const response = await fetch('PUT BACKEND_URL_HERE', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ flightRadius: radius }), // This is the payload!
+      });
+      if (!response.ok) {
+        throw new Error('failed to update flight radius');
+      }
+      // here is where we would handle the response.
+      } catch (error) {
+        console.error('Error updating flight radius:', error);
+    }
+  };
 
   const { theme, toggleTheme } = useAppTheme();
   const isDark = theme === 'dark';
@@ -77,7 +101,25 @@ function SettingsScreen() {
         <ThemedText style={{ marginBottom: 12 }}>Set how far (in miles) to passively scan for nearby flights:</ThemedText>
         <ThemedText style={{ marginBottom: 8 }}>Radius: {flightRadius} miles</ThemedText>
 
-        <TapGestureHandler onActivated={() => {}}>
+        {/* Placeholder picker in lieu of the slider below, since it's got a bug :P.*/}
+        <Picker
+          selectedValue={flightRadius}
+          onValueChange={(itemValue) => updateFlightRadius(Number(itemValue))}
+          style={{
+            color: getInterpolatedColor(flightRadius),
+            marginBottom: 8,
+          }}
+        >
+          <Picker.Item label="1" value={1} />
+          <Picker.Item label="5" value={5} />
+          <Picker.Item label="10" value={10} />
+          <Picker.Item label="15" value={15} />
+          <Picker.Item label="20" value={20} />
+          <Picker.Item label="25" value={25} />
+        </Picker>
+
+        {/*
+        <GestureDetector gesture={Gesture.Tap().onEnd(() => {})}>
           <Slider
             value={flightRadius}
             onValueChange={setFlightRadius}
@@ -89,7 +131,8 @@ function SettingsScreen() {
             maximumTrackTintColor="#ccc"
             thumbTintColor={getInterpolatedColor(flightRadius)}
           />
-        </TapGestureHandler>
+        </GestureDetector>
+        */}
 
         <ThemedText style={{ marginTop: 12, color: getInterpolatedColor(flightRadius), fontWeight: '600' }}>
           WARNING: GREATER DETECTION RADIUS MAY INCREASE QUERY TIME
@@ -110,7 +153,6 @@ function SettingsScreen() {
     </View>
   );
 }
-//}
 
 const styles = StyleSheet.create({
   titleContainer: {
@@ -122,8 +164,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    overflowX: 'hidden',
-    overflowY: 'scroll',
   },
   section: {
     paddingHorizontal: 20,

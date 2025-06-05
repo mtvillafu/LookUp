@@ -7,16 +7,29 @@ const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useBouncingBox } from '@/hooks/useBouncingBox'; // bouncing red box for overlays
+import { Switch } from 'react-native-gesture-handler';
+
+// For plane tracking switch
+import PlaneTrackingToggle from '@/components/PlaneTrackingToggle';
+import { ThemedText } from '@/components/ThemedText';
+
+// for mixed reality vs map switch
+import MixedRealityToggle from '@/components/MixedRealityToggle';
 
 export default function MapScreen() {
+
   // Default to false for mixed reality mode initially for load on phones
   const [isMixedReality, setIsMixedReality] = useState(false);
+  const toggleMixedReality = () => setIsMixedReality(!isMixedReality);
+  const mixedRealityScale = 1.8; // Change this value to scale the switch(es) that are present on the UI
 
   // Uses the built-in permission hook from expo-camera for camera usage
   const [permission, requestPermission] = useCameraPermissions();
 
   // Set the default camera facing to back
   const [facing, setFacing] = useState<CameraType>('back');
+  const captureInterval = 2000; // Interval for capturing images in milliseconds (2 seconds by default)
+  const cameraRef = useRef<CameraView>(null);
 
   // Function for button to swap between camera and MxR
   const toggleMode = () => setIsMixedReality(!isMixedReality);
@@ -27,12 +40,48 @@ export default function MapScreen() {
   // Get the screen width
   const [placement, setPlacement] = useState<'left' | 'right'>('right');
 
+  // Variables for switch between satellite tracking and plane tracking
+  const [isTrackingPlanes, setIsTrackingPlanes] = useState(true);
+  const toggleTrackingPlanes = () => setIsTrackingPlanes(!isTrackingPlanes);
+  const planeSwitchScale = 1.8; // Change this value to scale the switch
+
   // Tooltip Init
   const tooltipOffset = useRef(new Animated.Value(250)).current; // default on the right side
   const flipLeftDimensions = -175; // offset for left side
   const flipRightDimensions = 250; // offset for right side
   const flipDuration = 200; // duration for flip animation in ms
   const lastSide = useRef<'left' | 'right'>('right'); // track last position of tooltip
+
+  // =================================== PING SERVER FUNCTION ==================================
+  // We don't want to automatially refresh the API, so we have a button to do it manually.
+  const refreshAircraftData = async () => {
+    try {
+      const response = await fetch('APIENDPOINTHERE'); //  API endpoint
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log('API Response:', data);
+    } catch (error) {
+      console.error('Error pinging server:', error);
+    }
+  };
+
+  // =================================== END PING SERVER FUNCTION ==================================
+
+  // payload for object detection API
+  // ================================== OBJECT DETECTION API PAYLOAD ================================== 
+  const sendToObjectDetectionAPI = async (base64Image: string) => {
+    const response = await fetch('APIENDPOINTHERE', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image }),
+    });
+
+    const result = await response.json();
+    // FROM HERE, TAKE THE RESULT AND USE IT TO DEFINE THE LOCATION OF THE BOUNDING BOX.
+  };
+  // ================================== END OBJECT DETECTION API PAYLOAD ==================================
 
   // Edge detection listener for tooltip. If the box is on the left side, move the tooltip to the right, and vice versa.
   useEffect(() => {
@@ -60,6 +109,32 @@ export default function MapScreen() {
       bouncingPosition.x.removeListener(listenerId);
     };
   }, []);
+
+  // ========================= CAMERA CAPTURE LOGIC =========================
+  // Here is where we capture images from the camera at a set interval
+  useEffect(() => {
+
+    // define the interval function for capturing images
+    const interval = setInterval(async () => {
+
+      // we care that the user has granted permission to use of the camera, and that we're in mixed reality mode
+      if (isMixedReality && permission?.status === 'granted' && cameraRef.current) {
+        try {
+          // capture an image from the camera, if able to and send to API
+          const photo = await cameraRef.current.takePictureAsync({ base64: true });
+
+          // have to check if the photo has a base64 string, as it may not always be available
+          if (photo.base64) {
+            sendToObjectDetectionAPI(photo.base64);
+          }
+        } catch (error) {
+          console.error('Error capturing photo:', error);
+        }
+      }
+    }, captureInterval);
+    return () => clearInterval(interval);
+  }, []);
+  // ========================= END CAMERA CAPTURE LOGIC ==========================
 
   // ========================= PLANE EXAMPLE TRACKING && TOOLTIP =========================
   const [debugBoxes, setDebugBoxes] = useState 
@@ -151,10 +226,26 @@ export default function MapScreen() {
   }, 6500);
   };
 
-
   // ========================= CAMERA DISPLAY & CONTROL =========================
   return (
     <View style={styles.container}>
+
+      {/* Plane Tracking Toggle Switch */}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 50,
+          left: 50,
+          zIndex: 201,
+          transform: [{ scale: planeSwitchScale }],
+        }}
+      >
+        <PlaneTrackingToggle
+          value={isTrackingPlanes}
+          onToggle={() => toggleTrackingPlanes()}
+        />
+      </View>
+      {/* End plane tracking toggle switch */}
       
       {/* We check if mixed reality is enabled and permission is ranted, if so - allow for MxR Access. */}
       {isMixedReality ? (
@@ -205,8 +296,20 @@ export default function MapScreen() {
           <Text style={styles.placeholderText}>Map Placeholder</Text>
         </View>
       )}
-
       {/* Button to toggle between modes */}
+      <View style={{
+          position: 'absolute',
+          bottom: 50,
+          left: '50%',
+          transform: [{ translateX: -35 + mixedRealityScale }, { scale: mixedRealityScale }],
+          zIndex: 201,
+        }}>
+        <MixedRealityToggle
+          value={isMixedReality}
+          onToggle={toggleMixedReality}
+        />
+      </View>
+
       <View style={styles.buttonContainer}>
         <Button
           title={isMixedReality ? 'Switch to Map' : 'Switch to Mixed Reality'}
@@ -214,6 +317,19 @@ export default function MapScreen() {
         />
         {/* Button to spawn a new debug box */}
         <Button title="Spawn Debug Box" onPress={spawnDebugBox} />
+      </View>
+
+      {/* Button to ping the API */}
+      <View style={{
+        position: 'absolute',
+        top: '10%',
+        left: '10%',
+        zIndex: 200, 
+      }}>
+        <Button
+          title="(DEBUG) Refresh Aircraft Data"
+          onPress={ refreshAircraftData }
+        />
       </View>
 
       {/* Render debug boxes */}
