@@ -34,9 +34,6 @@ export default function MapScreen() {
   // Function for button to swap between camera and MxR
   const toggleMode = () => setIsMixedReality(!isMixedReality);
 
-  // Call our hook for the placeholder bouncing box
-  const bouncingPosition = useBouncingBox(240); // (size: 240)
-
   // Get the screen width
   const [placement, setPlacement] = useState<'left' | 'right'>('right');
 
@@ -52,6 +49,19 @@ export default function MapScreen() {
   const flipDuration = 200; // duration for flip animation in ms
   const lastSide = useRef<'left' | 'right'>('right'); // track last position of tooltip
 
+  // This is the box that will be used for the Object Detection API response
+  type BoxTuples = {
+    top_left: [number, number];
+    top_right: [number, number];
+    bottom_left: [number, number];
+    bottom_right: [number, number];
+    width: number;
+    height: number;
+  };
+
+  const [apiBox, setApiBox] = useState<BoxTuples | undefined>(undefined);
+  const { position: bouncingPosition, width: boxWidth, height: boxHeight } = useBouncingBox(240, 1000, 900, apiBox);
+
   // =================================== PING SERVER FUNCTION ==================================
   // We don't want to automatially refresh the API, so we have a button to do it manually.
   const refreshAircraftData = async () => {
@@ -66,23 +76,42 @@ export default function MapScreen() {
       console.error('Error pinging server:', error);
     }
   };
-
   // =================================== END PING SERVER FUNCTION ==================================
 
-  // payload for object detection API
   // ================================== OBJECT DETECTION API PAYLOAD ================================== 
   const sendToObjectDetectionAPI = async (base64Image: string) => {
-    const response = await fetch('APIENDPOINTHERE', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image }),
-    });
+  const response = await fetch('APIENDPOINTHERE', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64Image }),
+  });
 
-    const result = await response.json();
-    // FROM HERE, TAKE THE RESULT AND USE IT TO DEFINE THE LOCATION OF THE BOUNDING BOX.
-  };
+  const result = await response.json();
+
+  // Example: result = { top_left: [x, y], top_right: [x, y], bottom_left: [x, y], bottom_right: [x, y] }
+  if (Array.isArray(result.top_left) && Array.isArray(result.top_right) && 
+      Array.isArray(result.bottom_left) && Array.isArray(result.bottom_right)) {
+
+    // determine the width and height of the box based on the coordinates returned from the API
+    // and set the apiBox state with the new dimensions
+    const [x, y] = result.top_left;
+    const [topRightX] = result.top_right;
+    const [, bottomLeftY] = result.bottom_left;
+    const width = topRightX - x;
+    const height = bottomLeftY - y;
+    setApiBox({
+      top_left: result.top_left,
+      top_right: result.top_right,
+      bottom_left: result.bottom_left,
+      bottom_right: result.bottom_right,
+      width,
+      height,
+    });
+  }
+};
   // ================================== END OBJECT DETECTION API PAYLOAD ==================================
 
+  // ================================== EDGE DETECTION FOR TOOLTIP ========================================
   // Edge detection listener for tooltip. If the box is on the left side, move the tooltip to the right, and vice versa.
   useEffect(() => {
     const listenerId = bouncingPosition.x.addListener(({ value }) => {
@@ -109,8 +138,9 @@ export default function MapScreen() {
       bouncingPosition.x.removeListener(listenerId);
     };
   }, []);
+  // ================================== END EDGE DETECTION FOR TOOLTIP ========================================
 
-  // ========================= CAMERA CAPTURE LOGIC =========================
+  // ================================== CAMERA CAPTURE LOGIC ==================================================
   // Here is where we capture images from the camera at a set interval
   useEffect(() => {
 
@@ -134,99 +164,9 @@ export default function MapScreen() {
     }, captureInterval);
     return () => clearInterval(interval);
   }, []);
-  // ========================= END CAMERA CAPTURE LOGIC ==========================
+  // ========================= END CAMERA CAPTURE LOGIC ========================================================
 
-  // ========================= PLANE EXAMPLE TRACKING && TOOLTIP =========================
-  const [debugBoxes, setDebugBoxes] = useState 
-  <{
-    id: number;
-    position: Animated.ValueXY;
-    tooltipOffset: Animated.Value;
-    lastSide: 'left' | 'right';
-    showTooltip: boolean;
-  }[]
-  >([]);
-
-  // Function to spawn a new debug box for following planes
-  // the ID is determined based on the datetime, so it is unique
-  // The position is randomized to be off-screen on the left side, and the Y position is randomized to be anywhere on the screen
-  const spawnDebugBox = () => {
-  const id = Date.now();
-  const randomY = Math.random() * (screenHeight - 240);
-  const position = new Animated.ValueXY({ x: -240, y: randomY });
-  const tooltipOffset = new Animated.Value(250); // default to right
-  let lastSide: 'left' | 'right' = 'right';
-
-  // Initialize the box with offset and side tracking, use spread operator to enumerate && add to array
-  setDebugBoxes(prev => [
-    ...prev,
-    {
-      id,
-      position,
-      tooltipOffset,
-      lastSide,
-      showTooltip: false,
-    },
-  ]);
-
-  // Animate the box across screen
-  Animated.timing(position.x, {
-    toValue: screenWidth + 240,
-    duration: 6000,
-    easing: Easing.linear,
-    useNativeDriver: false,
-  }).start();
-
-  // Tooltip visibility and edge detection flip logic
-  // Listen for when position.x changes to be on screen, and if it is on screen, show the tooltip
-  const listenerId = position.x.addListener(({ value }) => {
-    setDebugBoxes(prev =>
-      prev.map(box => {
-        if (box.id !== id) return box;
-
-        // Determine whether or not the box is actually on-screen.
-        const fullyOnScreen = value >= 0 && value <= screenWidth - 240;
-
-        // If the box is fully on screen, show the tooltip - using logic to find which side it was on.
-        if (value > screenWidth - 450 && box.lastSide !== 'left') {
-          box.lastSide = 'left';
-          Animated.timing(box.tooltipOffset, {
-            toValue: flipLeftDimensions, // flip to left
-            duration: flipDuration,
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-            useNativeDriver: false,
-          }).start();
-        } else if (value < 240 && box.lastSide !== 'right') {
-          box.lastSide = 'right';
-          Animated.timing(box.tooltipOffset, {
-            toValue: flipRightDimensions, // flip to right
-            duration: flipDuration,
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-            useNativeDriver: false,
-          }).start();
-        }
-
-        return {
-          // Update the box with the new position
-          // SPREAD OPERATOR - this is a new object with the same properties as the old one, but with the updated position
-          // (I never get to use this in JS, this is awesome)
-          ...box,
-          showTooltip: fullyOnScreen,
-          lastSide: box.lastSide,
-          tooltipOffset: box.tooltipOffset,
-        };
-      })
-    );
-  });
-
-  // Clean up after it moves off screen
-  setTimeout(() => {
-    position.x.removeListener(listenerId);
-    setDebugBoxes(prev => prev.filter(box => box.id !== id));
-  }, 6500);
-  };
-
-  // ========================= CAMERA DISPLAY & CONTROL =========================
+  // ========================= CAMERA DISPLAY & CONTROL ========================================================
   return (
     <View style={styles.container}>
 
@@ -254,14 +194,20 @@ export default function MapScreen() {
             <CameraView style={styles.camera} />
 
             {/* This animated view handles the moving of the red-box */}
-            <Animated.View
-              style={[
-                styles.redBox,
-                {
-                  transform: bouncingPosition.getTranslateTransform(),
-                },
-              ]}
-            />
+            {/* the apiBox && turns the box off if there's no response from the API. apiBox && */}
+            
+            {apiBox && (
+              <Animated.View
+                style={[
+                  styles.redBox,
+                  {
+                    width: boxWidth,
+                    height: boxHeight,
+                    transform: bouncingPosition.getTranslateTransform(),
+                  },
+                ]}
+              />
+            )}
 
             {/* This animated view handles the tooltip for the red-box */}
             <Animated.View
@@ -310,15 +256,6 @@ export default function MapScreen() {
         />
       </View>
 
-      <View style={styles.buttonContainer}>
-        <Button
-          title={isMixedReality ? 'Switch to Map' : 'Switch to Mixed Reality'}
-          onPress={toggleMode}
-        />
-        {/* Button to spawn a new debug box */}
-        <Button title="Spawn Debug Box" onPress={spawnDebugBox} />
-      </View>
-
       {/* Button to ping the API */}
       <View style={{
         position: 'absolute',
@@ -331,38 +268,6 @@ export default function MapScreen() {
           onPress={ refreshAircraftData }
         />
       </View>
-
-      {/* Render debug boxes */}
-      {debugBoxes.map(box => (
-        <React.Fragment key={box.id}>
-          <Animated.View
-            style={[
-              styles.redBox,
-              { transform: box.position.getTranslateTransform() },
-            ]}
-          />
-          {box.showTooltip && (
-            <Animated.View
-              style={[
-                styles.infoBubble,
-                {
-                  top: Animated.add(box.position.y, new Animated.Value(10)),
-                  left: Animated.add(box.position.x, box.tooltipOffset),
-                },
-              ]}
-            >
-              <BlurView intensity={50} tint="dark" style={styles.flightCard}>
-                <Text style={styles.flightTitle}>DEBUG BOX 🧪</Text>
-                <Text style={styles.route}>← → Path</Text>
-                <Text style={styles.arrival}>Testing Tooltip Range</Text>
-                <View style={styles.detailsButton}>
-                  <Text style={styles.detailsText}>Tracking</Text>
-                </View>
-              </BlurView>
-            </Animated.View>
-          )}
-        </React.Fragment>
-      ))}
     </View>
   );
 }
@@ -386,6 +291,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   redBox: {
+    
     position: 'absolute',
     width: 240,
     height: 240,
