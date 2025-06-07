@@ -16,6 +16,8 @@ import { useAppTheme } from '@/theme/ThemeContext';
 import { Colors } from '@/constants/Colors';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { useFlightRadius } from '@/context/FlightRadiusContext';
+
 // Wrap the screen in GestureHandlerRootView for gesture support
 function withGestureHandlerRootView(Component: React.ComponentType) {
   return function Wrapper(props: any) {
@@ -31,25 +33,11 @@ function SettingsScreen() {
   // for Picker
   const [selectedLanguage, setSelectedLanguage] = useState('');
 
-  const [flightRadius, setFlightRadius] = useState(10);
+  const { flightRadius, setFlightRadius } = useFlightRadius();
 
   // Sending the flight radius value to the backend
   const updateFlightRadius = async (radius: number) => {
-    try {
-      const response = await fetch('PUT BACKEND_URL_HERE', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ flightRadius: radius }), // This is the payload!
-      });
-      if (!response.ok) {
-        throw new Error('failed to update flight radius');
-      }
-      // here is where we would handle the response.
-      } catch (error) {
-        console.error('Error updating flight radius:', error);
-    }
+    setFlightRadius(radius);
   };
 
   const { theme, toggleTheme } = useAppTheme();

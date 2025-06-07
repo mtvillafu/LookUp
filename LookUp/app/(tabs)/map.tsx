@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import { BlurView } from 'expo-blur';
 
+// flight data API key
+const FLIGHTDATAAPIKEY = process.env.FLIGHT_DATA_API_KEY;
+
 // Get the screen width and height
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -20,6 +23,8 @@ import MixedRealityToggle from '@/components/MixedRealityToggle';
 import MapView, { Marker, AnimatedRegion } from 'react-native-maps';
 import * as Location from 'expo-location';
 
+// for getting the flight radius from context
+import { useFlightRadius } from '@/context/FlightRadiusContext';
 
 export default function MapScreen() {
 
@@ -38,6 +43,12 @@ export default function MapScreen() {
   // user Latitude and longitude
   const userLatitude = location?.coords.latitude ?? null;
   const userLongitude = location?.coords.longitude ?? null;
+
+  // user defined flight range from context
+  const { flightRadius } = useFlightRadius();
+
+  // Bounding points for near flights query
+  let boundingPoints: { north: [number, number]; east: [number, number]; south: [number, number]; west: [number, number] } | null = null;
 
   // Get the user's current location if they allow permission
   // this is from Expo documentation.
@@ -105,14 +116,50 @@ export default function MapScreen() {
     };
   }
 
-  // Example usage (replace with your actual flightRange from settings)
-  const flightRange = 10; // in km, replace with your value
-  let boundingPoints: { north: [number, number]; east: [number, number]; south: [number, number]; west: [number, number] } | null = null;
-
+  // Get the user's bounding points if we have their location. !!ON BOOT!!
+  
   if (userLatitude !== null && userLongitude !== null) {
-    boundingPoints = getBoundingPoints(userLatitude, userLongitude, flightRange);
+    boundingPoints = getBoundingPoints(userLatitude, userLongitude, flightRadius);
+    
     // boundingPoints.north, .east, .south, .west are now available
+    const northPoint = [
+      boundingPoints.north[0].toFixed(3),
+      boundingPoints.north[1].toFixed(3)
+    ];
+    const southPoint = [
+      boundingPoints.south[0].toFixed(3),
+      boundingPoints.south[1].toFixed(3)
+    ];
+    const westPoint = [
+      boundingPoints.west[0].toFixed(3),
+      boundingPoints.west[1].toFixed(3)
+    ];
+    const eastPoint = [
+      boundingPoints.east[0].toFixed(3),
+      boundingPoints.east[1].toFixed(3)
+    ];
+
+    // API call to get flights within the bounding points.
+    fetch(
+      `https://fr24api.flightradar24.com/api/live/flight-positions/full?bounds=${northPoint[0]},${southPoint[0]},${westPoint[1]},${eastPoint[1]}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Version': 'v1',
+          'Authorization': `Bearer 019653fd-4687-73b7-8676-2813ddad5873|UnUs6oib9b7bnbjHToIHmSovQJ8CaEujhVsFYzKS4805cff7`,
+        },
+      }
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        console.log(JSON.stringify(data));
+      })
+      .catch((error) => {
+        console.log(error);
+      });
   }
+
   // ============================= END HAVERSINE FORMULA TO CALCULATE DISTANCE BASED ON USER LOCATION =============================
   // Set the default camera facing to back
   const [facing, setFacing] = useState<CameraType>('back');
