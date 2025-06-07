@@ -98,10 +98,11 @@ function SettingsScreen() {
 
       <View style={[styles.section, { backgroundColor: themeColors.background }]}>
         <ThemedText type="subtitle" style={ styles.sectionTitle }>Flight Detection Radius</ThemedText>
-        <ThemedText style={{ marginBottom: 12 }}>Set how far (in miles) to passively scan for nearby flights:</ThemedText>
-        <ThemedText style={{ marginBottom: 8 }}>Radius: {flightRadius} miles</ThemedText>
+        <ThemedText style={{ marginBottom: 12 }}>Set how far (in km) to passively scan for nearby flights:</ThemedText>
+        <ThemedText style={{ marginBottom: 8 }}>Radius: {flightRadius} km</ThemedText>
 
         {/* Placeholder picker in lieu of the slider below, since it's got a bug :P.*/}
+        
         <Picker
           selectedValue={flightRadius}
           onValueChange={(itemValue) => updateFlightRadius(Number(itemValue))}
