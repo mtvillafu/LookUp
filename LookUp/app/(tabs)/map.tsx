@@ -25,6 +25,7 @@ import * as Location from 'expo-location';
 
 // for getting the flight radius from context
 import { useFlightRadius } from '@/context/FlightRadiusContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MapScreen() {
 
@@ -50,6 +51,34 @@ export default function MapScreen() {
   // Bounding points for near flights query
   let boundingPoints: { north: [number, number]; east: [number, number]; south: [number, number]; west: [number, number] } | null = null;
 
+  // State for storing & displaying flights
+  type Flight = {
+    fr24_id: string;
+    flight: string | null;
+    callsign: string | null;
+    lat: number;
+    lon: number;
+    track: number;
+    alt: number;
+    gspeed: number;
+    vspeed: number;
+    squawk: string | null;
+    timestamp: string;
+    source: string;
+    hex?: string;
+    type: string | null;
+    reg: string | null;
+    painted_as: string | null;
+    operating_as: string | null;
+    orig_iata: string | null;
+    orig_icao: string | null;
+    dest_iata: string | null;
+    dest_icao: string | null;
+    eta: string | null;
+  };
+
+  const [flights, setFlights] = useState<Flight[]>([]);
+
   // Get the user's current location if they allow permission
   // this is from Expo documentation.
   // ============================= LOCATION PERMISSION =============================
@@ -71,8 +100,7 @@ export default function MapScreen() {
   // ============================= END LOCATION PERMISSION =============================
 
   // ============================= HAVERSINE FORMULA TO CALCULATE DISTANCE BASED ON USER LOCATION =============================
-
-  /**
+  /*
    * Returns four points (N, E, S, W) that are `distanceKm` away from the given lat/lon.
    * Uses the haversine formula for destination point.
    */
@@ -117,48 +145,49 @@ export default function MapScreen() {
   }
 
   // Get the user's bounding points if we have their location. !!ON BOOT!!
+  // This occurs every render step -- as such, while debugging we have it commented out.
   
-  if (userLatitude !== null && userLongitude !== null) {
-    boundingPoints = getBoundingPoints(userLatitude, userLongitude, flightRadius);
+  // if (userLatitude !== null && userLongitude !== null) {
+  //   boundingPoints = getBoundingPoints(userLatitude, userLongitude, flightRadius);
     
-    // boundingPoints.north, .east, .south, .west are now available
-    const northPoint = [
-      boundingPoints.north[0].toFixed(3),
-      boundingPoints.north[1].toFixed(3)
-    ];
-    const southPoint = [
-      boundingPoints.south[0].toFixed(3),
-      boundingPoints.south[1].toFixed(3)
-    ];
-    const westPoint = [
-      boundingPoints.west[0].toFixed(3),
-      boundingPoints.west[1].toFixed(3)
-    ];
-    const eastPoint = [
-      boundingPoints.east[0].toFixed(3),
-      boundingPoints.east[1].toFixed(3)
-    ];
+  //   // boundingPoints.north, .east, .south, .west are now available. We cull these to 3 deicmal places for API calls.
+  //   const northPoint = [
+  //     boundingPoints.north[0].toFixed(3),
+  //     boundingPoints.north[1].toFixed(3)
+  //   ];
+  //   const southPoint = [
+  //     boundingPoints.south[0].toFixed(3),
+  //     boundingPoints.south[1].toFixed(3)
+  //   ];
+  //   const westPoint = [
+  //     boundingPoints.west[0].toFixed(3),
+  //     boundingPoints.west[1].toFixed(3)
+  //   ];
+  //   const eastPoint = [
+  //     boundingPoints.east[0].toFixed(3),
+  //     boundingPoints.east[1].toFixed(3)
+  //   ];
 
-    // API call to get flights within the bounding points.
-    fetch(
-      `https://fr24api.flightradar24.com/api/live/flight-positions/full?bounds=${northPoint[0]},${southPoint[0]},${westPoint[1]},${eastPoint[1]}`,
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Version': 'v1',
-          'Authorization': `Bearer 019653fd-4687-73b7-8676-2813ddad5873|UnUs6oib9b7bnbjHToIHmSovQJ8CaEujhVsFYzKS4805cff7`,
-        },
-      }
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        console.log(JSON.stringify(data));
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  }
+  //   // API call to get flights within the bounding points.
+  //   fetch(
+  //     `https://fr24api.flightradar24.com/api/live/flight-positions/full?bounds=${northPoint[0]},${southPoint[0]},${westPoint[1]},${eastPoint[1]}`,
+  //     {
+  //       method: 'GET',
+  //       headers: {
+  //         'Accept': 'application/json',
+  //         'Accept-Version': 'v1',
+  //         'Authorization': `Bearer 019653fd-4687-73b7-8676-2813ddad5873|UnUs6oib9b7bnbjHToIHmSovQJ8CaEujhVsFYzKS4805cff7`,
+  //       },
+  //     }
+  //   )
+  //     .then((response) => response.json())
+  //     .then((data) => {
+  //       console.log(JSON.stringify(data));
+  //     })
+  //     .catch((error) => {
+  //       console.log(error);
+  //     });
+  // }
 
   // ============================= END HAVERSINE FORMULA TO CALCULATE DISTANCE BASED ON USER LOCATION =============================
   // Set the default camera facing to back
@@ -198,19 +227,53 @@ export default function MapScreen() {
   const { position: bouncingPosition, width: boxWidth, height: boxHeight } = useBouncingBox(240, 1000, 900, apiBox);
 
   // =================================== PING SERVER FUNCTION ==================================
-  // We don't want to automatially refresh the API, so we have a button to do it manually.
+  // We don't want to automatially refresh the API, so we have a button to do it manually. This is just for rate limiting purposes.
   const refreshAircraftData = async () => {
+  if (userLatitude !== null && userLongitude !== null) {
+    const boundingPoints = getBoundingPoints(userLatitude, userLongitude, flightRadius);
+
+    const northPoint = [
+      boundingPoints.north[0].toFixed(3),
+      boundingPoints.north[1].toFixed(3)
+    ];
+    const southPoint = [
+      boundingPoints.south[0].toFixed(3),
+      boundingPoints.south[1].toFixed(3)
+    ];
+    const westPoint = [
+      boundingPoints.west[0].toFixed(3),
+      boundingPoints.west[1].toFixed(3)
+    ];
+    const eastPoint = [
+      boundingPoints.east[0].toFixed(3),
+      boundingPoints.east[1].toFixed(3)
+    ];
+
     try {
-      const response = await fetch('APIENDPOINTHERE'); //  API endpoint
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
+      const response = await fetch(
+        `https://fr24api.flightradar24.com/api/live/flight-positions/full?bounds=${northPoint[0]},${southPoint[0]},${westPoint[1]},${eastPoint[1]}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Accept-Version': 'v1',
+            'Authorization': `Bearer 019653fd-4687-73b7-8676-2813ddad5873|UnUs6oib9b7bnbjHToIHmSovQJ8CaEujhVsFYzKS4805cff7`,
+          },
+        }
+      );
       const data = await response.json();
-      console.log('API Response:', data);
+      
+      console.log(JSON.stringify(data));
+
+      setFlights(data.data ?? []); 
+      
     } catch (error) {
-      console.error('Error pinging server:', error);
+      console.log(error);
     }
-  };
+  } else {
+    console.log('User location not available');
+  }
+};
   // =================================== END PING SERVER FUNCTION ==================================
 
   // ================================== OBJECT DETECTION API PAYLOAD ================================== 
@@ -389,6 +452,26 @@ export default function MapScreen() {
                 title="Current Location"
               />
             )}
+            { flights.map((flight) => (
+                <Marker
+                key={flight.fr24_id}
+                coordinate={{ latitude: flight.lat, longitude: flight.lon }}
+                title={flight.flight || flight.callsign || 'Unknown Flight'}
+                description={`Altitude: ${flight.alt} ft, Speed: ${flight.gspeed} km/h`}
+                >
+                {/* Ionicons plane icon as marker */}
+                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons
+                      name="airplane"
+                      size={28}
+                      color="#007aff"
+                      style={{
+                      transform: [{ rotate: `${flight.track}deg` }],
+                      }}
+                    />
+                    </View>
+                </Marker>
+            ))}
           </MapView>
       )}
       {/* Button to toggle between modes */}
