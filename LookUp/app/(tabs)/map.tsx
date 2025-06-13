@@ -146,6 +146,7 @@ export default function MapScreen() {
 
   // Get the user's bounding points if we have their location. !!ON BOOT!!
   // This occurs every render step -- as such, while debugging we have it commented out.
+  // LATER IN DEVELOPMENT, WE WILL UNCOMMENT THIS, AND IMPLEMENT A TIME STEP TO UPDATE THE BOUNDING POINTS
   
   // if (userLatitude !== null && userLongitude !== null) {
   //   boundingPoints = getBoundingPoints(userLatitude, userLongitude, flightRadius);
@@ -190,6 +191,7 @@ export default function MapScreen() {
   // }
 
   // ============================= END HAVERSINE FORMULA TO CALCULATE DISTANCE BASED ON USER LOCATION =============================
+
   // Set the default camera facing to back
   const [facing, setFacing] = useState<CameraType>('back');
   const captureInterval = 2000; // Interval for capturing images in milliseconds (2 seconds by default)
@@ -226,7 +228,7 @@ export default function MapScreen() {
   const [apiBox, setApiBox] = useState<BoxTuples | undefined>(undefined);
   const { position: bouncingPosition, width: boxWidth, height: boxHeight } = useBouncingBox(240, 1000, 900, apiBox);
 
-  // =================================== PING SERVER FUNCTION ==================================
+  // =================================== PING SERVER FUNCTION and GET THE USERS'S BOUNDING POINTS IF WE HAVE THEIR LOCATION ==================================
   // We don't want to automatially refresh the API, so we have a button to do it manually. This is just for rate limiting purposes.
   const refreshAircraftData = async () => {
   if (userLatitude !== null && userLongitude !== null) {
@@ -278,30 +280,37 @@ export default function MapScreen() {
 
   // ================================== OBJECT DETECTION API PAYLOAD ================================== 
   const sendToObjectDetectionAPI = async (base64Image: string) => {
-  const response = await fetch('APIENDPOINTHERE', {
+  // Convert base64 to a blob
+  const blob = await fetch(`data:image/jpeg;base64,${base64Image}`).then(res => res.blob());
+
+  const formData = new FormData();
+  formData.append('image', blob, 'photo.jpg');
+  formData.append('confidence', '0.5');
+  formData.append('iou', '0.3');
+
+  const response = await fetch('http://127.0.0.1:5001/bounding-box-corners', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64Image }),
+    body: formData,
+    // Do NOT set Content-Type header; let fetch handle it for multipart/form-data
   });
 
   const result = await response.json();
+  // result will be an array of bounding box corners as returned by Flask
+  console.log(result); 
 
-  // Example: result = { top_left: [x, y], top_right: [x, y], bottom_left: [x, y], bottom_right: [x, y] }
-  if (Array.isArray(result.top_left) && Array.isArray(result.top_right) && 
-      Array.isArray(result.bottom_left) && Array.isArray(result.bottom_right)) {
-
-    // determine the width and height of the box based on the coordinates returned from the API
-    // and set the apiBox state with the new dimensions
-    const [x, y] = result.top_left;
-    const [topRightX] = result.top_right;
-    const [, bottomLeftY] = result.bottom_left;
+  // Example: result = [{ top_left: [x, y], top_right: [x, y], ... }]
+  if (Array.isArray(result) && result.length > 0) {
+    const box = result[0];
+    const [x, y] = box.top_left;
+    const [topRightX] = box.top_right;
+    const [, bottomLeftY] = box.bottom_left;
     const width = topRightX - x;
     const height = bottomLeftY - y;
     setApiBox({
-      top_left: result.top_left,
-      top_right: result.top_right,
-      bottom_left: result.bottom_left,
-      bottom_right: result.bottom_right,
+      top_left: box.top_left,
+      top_right: box.top_right,
+      bottom_left: box.bottom_left,
+      bottom_right: box.bottom_right,
       width,
       height,
     });
@@ -456,7 +465,7 @@ export default function MapScreen() {
                 <Marker
                 key={flight.fr24_id}
                 coordinate={{ latitude: flight.lat, longitude: flight.lon }}
-                title={flight.flight || flight.callsign || 'Unknown Flight'}
+                title={flight.flight || flight.callsign || 'Cannot determine flight name or callsign'}
                 description={`Altitude: ${flight.alt} ft, Speed: ${flight.gspeed} km/h`}
                 >
                 {/* Ionicons plane icon as marker */}
