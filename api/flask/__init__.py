@@ -111,4 +111,4 @@ def bounding_box_corners():
     return jsonify(corner_data)
 
 if __name__ == '__main__':
-    app.run(port=5001)
+    app.run(host="::", port=5001)
