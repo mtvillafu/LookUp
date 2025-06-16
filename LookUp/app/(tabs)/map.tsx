@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import { BlurView } from 'expo-blur';
+import * as FileSystem from 'expo-file-system';
 
 // flight data API key
 const FLIGHTDATAAPIKEY = process.env.FLIGHT_DATA_API_KEY;
@@ -279,42 +280,62 @@ export default function MapScreen() {
   // =================================== END PING SERVER FUNCTION ==================================
 
   // ================================== OBJECT DETECTION API PAYLOAD ================================== 
+  
   const sendToObjectDetectionAPI = async (base64Image: string) => {
-  // Convert base64 to a blob
-  const blob = await fetch(`data:image/jpeg;base64,${base64Image}`).then(res => res.blob());
 
-  const formData = new FormData();
-  formData.append('image', blob, 'photo.jpg');
-  formData.append('confidence', '0.5');
-  formData.append('iou', '0.3');
+    const fileUri = FileSystem.cacheDirectory + 'photo.jpg';
+    await FileSystem.writeAsStringAsync(fileUri, base64Image, { encoding: FileSystem.EncodingType.Base64 });
 
-  const response = await fetch('http://127.0.0.1:5001/bounding-box-corners', {
-    method: 'POST',
-    body: formData,
-    // Do NOT set Content-Type header; let fetch handle it for multipart/form-data
-  });
+    const formData = new FormData();
+    formData.append('image', {
+      uri: fileUri,
+      name: 'photo.jpg',
+      type: 'image/jpeg',
+    } as any);
+    formData.append('confidence', '0.5');
+    formData.append('iou', '0.3');
 
-  const result = await response.json();
-  // result will be an array of bounding box corners as returned by Flask
-  console.log(result); 
+    console.log("Just before fetch call to API with formData:", formData);
 
-  // Example: result = [{ top_left: [x, y], top_right: [x, y], ... }]
-  if (Array.isArray(result) && result.length > 0) {
-    const box = result[0];
-    const [x, y] = box.top_left;
-    const [topRightX] = box.top_right;
-    const [, bottomLeftY] = box.bottom_left;
-    const width = topRightX - x;
-    const height = bottomLeftY - y;
-    setApiBox({
-      top_left: box.top_left,
-      top_right: box.top_right,
-      bottom_left: box.bottom_left,
-      bottom_right: box.bottom_right,
-      width,
-      height,
-    });
-  }
+    let response;
+    try {
+      response = await fetch(`http://192.168.1.66:5001/bounding-box-corners`, {
+      method: 'POST',
+      body: formData,
+      // Do NOT set Content-Type header; let fetch handle it for multipart/form-data
+      });
+      if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+    } catch (error) {
+      console.error('Error sending image to object detection API:', error);
+      return;
+    }
+
+    console.log("Response from API:", response);
+
+    const result = await response.json();
+    // result will be an array of bounding box corners as returned by Flask
+    console.log(result); 
+
+    // Example: result = [{ top_left: [x, y], top_right: [x, y], ... }]
+    if (Array.isArray(result) && result.length > 0) {
+      const box = result[0];
+      const [x, y] = box.top_left;
+      const [topRightX] = box.top_right;
+      const [, bottomLeftY] = box.bottom_left;
+      const width = topRightX - x;
+      const height = bottomLeftY - y;
+      setApiBox({
+        top_left: box.top_left,
+        top_right: box.top_right,
+        bottom_left: box.bottom_left,
+        bottom_right: box.bottom_right,
+        width,
+        height,
+      });
+    }
 };
   // ================================== END OBJECT DETECTION API PAYLOAD ==================================
 
@@ -354,6 +375,8 @@ export default function MapScreen() {
     // define the interval function for capturing images
     const interval = setInterval(async () => {
 
+      // console.log("Interval running", { isMixedReality, permission, cameraRef: !!cameraRef.current });
+
       // we care that the user has granted permission to use of the camera, and that we're in mixed reality mode
       if (isMixedReality && permission?.status === 'granted' && cameraRef.current) {
         try {
@@ -362,6 +385,8 @@ export default function MapScreen() {
 
           // have to check if the photo has a base64 string, as it may not always be available
           if (photo.base64) {
+            // Log photo captured with the photo's uri or a default name
+            // console.log('photo captured', photo.uri || 'unnamed_photo'); // DEBUG PHOTO CAPTURE LOG
             sendToObjectDetectionAPI(photo.base64);
           }
         } catch (error) {
@@ -370,7 +395,7 @@ export default function MapScreen() {
       }
     }, captureInterval);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMixedReality, permission, cameraRef, captureInterval]);
   // ========================= END CAMERA CAPTURE LOGIC ========================================================
 
   // ========================= CAMERA DISPLAY & CONTROL ========================================================
@@ -398,7 +423,9 @@ export default function MapScreen() {
       {isMixedReality ? (
         permission?.status === 'granted' ? (
           <>
-            <CameraView style={styles.camera} />
+            <CameraView 
+              ref={cameraRef}
+              style={styles.camera} />
 
             {/* This animated view handles the moving of the red-box */}
             {/* the apiBox && turns the box off if there's no response from the API. apiBox && */}
