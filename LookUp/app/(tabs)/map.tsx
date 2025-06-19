@@ -28,6 +28,9 @@ import * as Location from 'expo-location';
 import { useFlightRadius } from '@/context/FlightRadiusContext';
 import { Ionicons } from '@expo/vector-icons';
 
+// for getting the compass heading from the compass heading component
+import CompassHeading from '@/components/CompassHeading';
+
 export default function MapScreen() {
 
   // Default to false for mixed reality mode initially for load on phones
@@ -423,7 +426,19 @@ export default function MapScreen() {
       {isMixedReality ? (
         permission?.status === 'granted' ? (
           <>
-            <CameraView 
+            {/* Compass Heading at the top center of the screen */}
+
+            <View style={{
+              position: 'absolute',
+              top: 50,
+              left: '50%',
+              alignItems: 'center',
+              zIndex: 999,
+            }}>
+              <CompassHeading />
+            </View>
+
+            <CameraView
               ref={cameraRef}
               style={styles.camera} />
 
@@ -614,4 +629,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
