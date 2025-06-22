@@ -468,6 +468,7 @@ export default function MapScreen() {
                 },
               ]}
             >
+              
               <BlurView intensity={50} tint="dark" style={styles.flightCard}>
                 <Text style={styles.flightTitle}>Flight 12812 ⭐</Text>
                 <Text style={styles.route}>JP → NY</Text>
@@ -589,6 +590,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   flightCard: {
+    transform: [{ scale: .75 }],
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
