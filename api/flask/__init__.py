@@ -42,16 +42,6 @@ def non_max_suppression(preds, iou_thresh):
         ) < iou_thresh]
     return final
 
-def compress_and_resize_image(input_path, output_path, max_size=(1024, 1024), quality=85):
-    img = Image.open(input_path)
-
-    img.thumbnail(max_size)
-
-    img.save(output_path, format='JPEG', quality=quality)
-
-    file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-    return file_size_mb
-
 @app.route('/detect-and-annotate', methods=['POST'])
 def detect_and_annotate():
     image_file = request.files['image']
@@ -97,17 +87,33 @@ def bounding_box_corners():
 
 
 
+
     temp_path_compressed = "/tmp/uploaded_compressed.jpg"
     img = Image.open(temp_path)
     img.thumbnail((1024, 1024))  # Resize to max 1024x1024 while keeping aspect ratio
     img.save(temp_path_compressed, format="JPEG", quality=85)  # Compress
 
-    # Optionally check file size
-    file_size_mb = os.path.getsize(temp_path_compressed) / (1024 * 1024)
-    if file_size_mb > 5:
-        os.remove(temp_path)
-        os.remove(temp_path_compressed)
-        return jsonify({"error": f"Compressed file still too large: {file_size_mb:.2f} MB"}), 400
+    max_size = 1024
+    quality = 85
+    size_limit_mb = 4
+
+    while True:
+        img.thumbnail((max_size, max_size))
+
+        img.save(temp_path_compressed, format="JPEG", quality=quality)
+
+        file_size_mb = os.path.getsize(temp_path_compressed) / (1024 * 1024)
+
+        if file_size_mb <= size_limit_mb:
+            break
+
+        max_size = int(max_size * 0.9) 
+        quality = max(50, quality - 5) 
+
+        if max_size < 200:
+            os.remove(temp_path)
+            os.remove(temp_path_compressed)
+            return jsonify({"error": "Cannot compress image below size limit"}), 400
 
 
 
