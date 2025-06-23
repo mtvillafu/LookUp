@@ -95,7 +95,8 @@ def bounding_box_corners():
 
     max_size = 1024
     quality = 85
-    size_limit_mb = 4
+    size_limit_mb = 1
+    count = 1
 
     while True:
         img.thumbnail((max_size, max_size))
@@ -103,6 +104,8 @@ def bounding_box_corners():
         img.save(temp_path_compressed, format="JPEG", quality=quality)
 
         file_size_mb = os.path.getsize(temp_path_compressed) / (1024 * 1024)
+
+        print(count + ": " + file_size_mb)
 
         if file_size_mb <= size_limit_mb:
             break
