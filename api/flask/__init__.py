@@ -78,36 +78,37 @@ def detect_and_annotate():
 
 @app.route('/bounding-box-corners', methods=['POST'])
 def bounding_box_corners():
-    file = request.files.get('file')
-    if not file:
-        return jsonify({"error": "No file uploaded"}), 400
+    image_file = request.files['image']
+    confidence = float(request.form.get('confidence', 0.5))
+    iou = float(request.form.get('iou', 0.3))
 
-    temp_path = "/tmp/input_image.jpg"
-    file.save(temp_path)
+    temp_path = "/tmp/uploaded.png"
+    image_file.save(temp_path)
 
-    # Resize + compress to reduce file size
-    try:
-        img = Image.open(temp_path)
-        
-        max_size = (1024, 1024)
-        img.thumbnail(max_size)
+    result = CLIENT.infer(temp_path, model_id=MODEL_ID)
+    predictions = result.get('predictions', [])
+    predictions = [p for p in predictions if p['confidence'] >= confidence]
+    predictions = non_max_suppression(predictions, iou)
 
-        temp_path_compressed = "/tmp/input_image_compressed.jpg"
-        img.save(temp_path_compressed, format="JPEG", quality=85)
+    os.remove(temp_path)
 
-        file_size = os.path.getsize(temp_path_compressed) / (1024 * 1024)  # MB
-        if file_size > 5:
-            return jsonify({"error": f"File too large after compression: {file_size:.2f} MB"}), 400
+    corner_data = []
+    for pred in predictions:
+        x0 = pred['x'] - pred['width'] / 2
+        y0 = pred['y'] - pred['height'] / 2
+        x1 = pred['x'] + pred['width'] / 2
+        y1 = pred['y'] + pred['height'] / 2
+        corners = {
+            "class": pred["class"],
+            "confidence": pred["confidence"],
+            "top_left": [x0, y0],
+            "top_right": [x1, y0],
+            "bottom_left": [x0, y1],
+            "bottom_right": [x1, y1]
+        }
+        corner_data.append(corners)
 
-    except Exception as e:
-        return jsonify({"error": f"Image processing failed: {str(e)}"}), 500
-
-    # Send to Roboflow
-    try:
-        result = CLIENT.infer(temp_path_compressed, model_id=MODEL_ID)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": f"Inference failed: {str(e)}"}), 500
+    return jsonify(corner_data)
 
 if __name__ == '__main__':
     app.run(port=5001)
