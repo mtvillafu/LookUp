@@ -64,6 +64,8 @@ export default function MapScreen() {
   // user defined flight range from context
   const { flightRadius } = useFlightRadius();
 
+  const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
+
   // Bounding points for near flights query
   let boundingPoints: {
     north: [number, number];
@@ -317,8 +319,22 @@ export default function MapScreen() {
 
   // ================================== OBJECT DETECTION API PAYLOAD ==================================
 
-  const sendToObjectDetectionAPI = async (imageUri: string) => {
-    
+  const sendToObjectDetectionAPI = async (
+    imageUri: string,
+    imageWidth: number,
+    imageHeight: number,
+    previewWidth: number,
+    previewHeight: number
+  ) => {
+    const scaleX = previewWidth / imageWidth;
+    const scaleY = previewHeight / imageHeight;
+
+    const factor = 4;
+    const scalePoint = ([x, y]: [number, number]): [number, number] => [
+      x * scaleX * factor,
+      y * scaleY * factor,
+    ];
+
     const formData = new FormData();
     formData.append("image", {
       uri: imageUri,
@@ -352,17 +368,37 @@ export default function MapScreen() {
 
     // Example: result = [{ top_left: [x, y], top_right: [x, y], ... }]
     if (Array.isArray(result) && result.length > 0) {
+      const imageAspect = imageWidth / imageHeight;
+      const previewAspect = previewWidth / previewHeight;
+
+      console.log({
+        imageWidth,
+        imageHeight,
+        previewWidth,
+        previewHeight
+      });
+
       const box = result[0];
-      const [x, y] = box.top_left;
-      const [topRightX] = box.top_right;
-      const [, bottomLeftY] = box.bottom_left;
-      const width = topRightX - x;
-      const height = bottomLeftY - y;
+      const top_left = scalePoint(box.top_left);
+      const top_right = scalePoint(box.top_right);
+      const bottom_left = scalePoint(box.bottom_left);
+      const bottom_right = scalePoint(box.bottom_right);
+
+      const width = top_right[0] - top_left[0];
+      const height = bottom_left[1] - top_left[1];
+
+      console.log({
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
+      });
+
       setApiBox({
-        top_left: box.top_left,
-        top_right: box.top_right,
-        bottom_left: box.bottom_left,
-        bottom_right: box.bottom_right,
+        top_left,
+        top_right,
+        bottom_left,
+        bottom_right,
         width,
         height,
       });
@@ -416,11 +452,21 @@ export default function MapScreen() {
           // capture an image from the camera, if able to and send to API
           const photo = await cameraRef.current.takePictureAsync();
 
-          
+          console.log("DEBUG: photo.width =", photo.width);
+          console.log("DEBUG: photo.height =", photo.height);
+          console.log("DEBUG: screenWidth =", screenWidth);
+          console.log("DEBUG: screenHeight =", screenHeight);
+
           // Log photo captured with the photo's uri or a default name
           // console.log('photo captured', photo.uri || 'unnamed_photo'); // DEBUG PHOTO CAPTURE LOG
           if (photo.uri) {
-            sendToObjectDetectionAPI(photo.uri);
+            sendToObjectDetectionAPI(
+              photo.uri,
+              photo.width,
+              photo.height,
+              screenWidth,
+              screenHeight
+            );
           }
         } catch (error) {
           console.error("Error capturing photo:", error);
@@ -469,7 +515,14 @@ export default function MapScreen() {
               <CompassHeading />
             </View>
 
-            <CameraView ref={cameraRef} style={styles.camera} />
+            <CameraView
+              ref={cameraRef}
+              style={styles.camera}
+              onLayout={(e) => {
+                const { width, height } = e.nativeEvent.layout;
+                setPreviewSize({ width, height });
+              }}
+            />
 
             {/* This animated view handles the moving of the red-box */}
             {/* the apiBox && turns the box off if there's no response from the API. apiBox && */}
@@ -606,7 +659,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   placeholderText: { fontSize: 20, color: "#555" },
-  camera: { flex: 1 },
+  camera: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: screenWidth,
+    height: screenHeight,
+  },
   permissionContainer: {
     flex: 1,
     justifyContent: "center",
