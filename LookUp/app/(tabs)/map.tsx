@@ -608,6 +608,12 @@ export default function MapScreen() {
                 <Text style={{ color: "#ccc", fontSize: 14 }}>
                   Flight#: {flightInView.flight ?? "N/A"}
                 </Text>
+                <Text style={{ color: "#ccc", fontSize: 14 }}>
+                  Origin: {flightInView.orig_iata ?? "N/A"}
+                </Text>
+                <Text style={{ color: "#ccc", fontSize: 14 }}>
+                  Destination: {flightInView.dest_iata ?? "N/A"}
+                </Text>
               </View>
             )}
 
