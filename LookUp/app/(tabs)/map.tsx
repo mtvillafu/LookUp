@@ -42,7 +42,12 @@ import { Ionicons } from "@expo/vector-icons";
 // for getting the compass heading from the compass heading component
 import CompassHeading from "@/components/CompassHeading";
 
+import { useCompassHeading } from "@/hooks/useCompassHeading";
+
 export default function MapScreen() {
+  const { rawHeading, pitch, startCompass, stopCompass } = useCompassHeading();
+  const userHeading = rawHeading !== null ? (rawHeading + 180) % 360 : null;
+
   // Default to false for mixed reality mode initially for load on phones
   const [isMixedReality, setIsMixedReality] = useState(false);
   const toggleMixedReality = () => setIsMixedReality(!isMixedReality);
@@ -101,6 +106,46 @@ export default function MapScreen() {
   };
 
   const [flights, setFlights] = useState<Flight[]>([]);
+  const [flightInView, setFlightInView] = useState<Flight | null>(null);
+
+  // ============================= GET USER'S BEARING =============================
+  function getBearing(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+    const dLon = toRad(lon2 - lon1);
+    const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+    const x =
+      Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+      Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+    let brng = Math.atan2(y, x);
+    brng = toDeg(brng);
+    // normalize 0..360
+    return (brng + 360) % 360;
+  }
+
+  function getFlightInView(
+    userLat: number,
+    userLon: number,
+    heading: number,
+    flights: Flight[],
+    tolerance: number = 5
+  ): Flight | null {
+    let inViewFlight: Flight | null = null;
+
+    for (const flight of flights) {
+      const bearing = getBearing(userLat, userLon, flight.lat, flight.lon);
+      // measure difference between heading and bearing
+      const diff = Math.abs(((bearing - heading + 540) % 360) - 180); 
+      // if within tolerance (e.g., ±10°), we consider it "in view"
+      if (diff <= tolerance) {
+        inViewFlight = flight;
+        break; 
+      }
+    }
+    return inViewFlight;
+  }
+  // ============================== END GET USER'S BEARING =============================
 
   // Get the user's current location if they allow permission
   // this is from Expo documentation.
@@ -317,6 +362,34 @@ export default function MapScreen() {
   };
   // =================================== END PING SERVER FUNCTION ==================================
 
+  // ================================== UPDATE FLIGHT IN VIEW WHEN USER HEADING CHANGES ============
+
+  useEffect(() => {
+    console.log("Raw Heading:", rawHeading);
+    if (userHeading !== null && userLatitude && userLongitude && isMixedReality) {
+      const newFlight = getFlightInView(
+        userLatitude,
+        userLongitude,
+        userHeading,
+        flights,
+        10
+      );
+      setFlightInView(newFlight);
+      console.log("User Heading:", userHeading);
+      console.log("Updated flightInView:", newFlight?.callsign ?? "None");
+    }
+  }, [userHeading, userLatitude, userLongitude, flights]);
+
+  useEffect(() => {
+    if (isMixedReality) {
+      startCompass();
+    } else {
+      stopCompass();
+    }
+  }, [isMixedReality]);
+
+  // ================================== END UPDATE FLIGHT IN VIEW WHEN USER HEADING CHANGES ========
+
   // ================================== OBJECT DETECTION API PAYLOAD ==================================
 
   const sendToObjectDetectionAPI = async (
@@ -452,10 +525,10 @@ export default function MapScreen() {
           // capture an image from the camera, if able to and send to API
           const photo = await cameraRef.current.takePictureAsync();
 
-          console.log("DEBUG: photo.width =", photo.width);
-          console.log("DEBUG: photo.height =", photo.height);
-          console.log("DEBUG: screenWidth =", screenWidth);
-          console.log("DEBUG: screenHeight =", screenHeight);
+          // console.log("DEBUG: photo.width =", photo.width);
+          // console.log("DEBUG: photo.height =", photo.height);
+          // console.log("DEBUG: screenWidth =", screenWidth);
+          // console.log("DEBUG: screenHeight =", screenHeight);
 
           // Log photo captured with the photo's uri or a default name
           // console.log('photo captured', photo.uri || 'unnamed_photo'); // DEBUG PHOTO CAPTURE LOG
@@ -515,6 +588,29 @@ export default function MapScreen() {
               <CompassHeading />
             </View>
 
+            {flightInView && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 120,
+                  left: "50%",
+                  transform: [{ translateX: -150 }],
+                  width: 300,
+                  padding: 10,
+                  backgroundColor: "rgba(0,0,0,0.7)",
+                  borderRadius: 10,
+                  zIndex: 999,
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
+                  {flightInView.callsign ?? "Unknown"}
+                </Text>
+                <Text style={{ color: "#ccc", fontSize: 14 }}>
+                  Flight#: {flightInView.flight ?? "N/A"}
+                </Text>
+              </View>
+            )}
+
             <CameraView
               ref={cameraRef}
               style={styles.camera}
@@ -570,12 +666,13 @@ export default function MapScreen() {
           </View>
         )
       ) : (
+        (userLongitude && userLatitude) && (
         // furthermore, if we're on the map screen, just show the map.
         <MapView
           style={styles.mapContainer}
           initialRegion={{
-            latitude: userLatitude ?? 420.0,
-            longitude: userLongitude ?? 69.0,
+            latitude: userLatitude ?? 0,
+            longitude: userLongitude ?? 0,
             latitudeDelta: 0.0922,
             longitudeDelta: 0.0421,
           }}
@@ -612,7 +709,7 @@ export default function MapScreen() {
             </Marker>
           ))}
         </MapView>
-      )}
+      ))}
       {/* Button to toggle between modes */}
       <View
         style={{
