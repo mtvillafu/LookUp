@@ -3,6 +3,8 @@ const axios = require("axios")
 const FormData = require("form-data")
 const multer = require("multer")
 
+const FLASK_API_BASE = "http://134.199.204.181:3000"
+
 const upload = multer({ dest: "uploads/" })
 
 module.exports.setApp = function (app, client) {
@@ -41,16 +43,19 @@ module.exports.setApp = function (app, client) {
     upload.single("image"),
     async (req, res) => {
       try {
+        if (!req.file) {
+          return res.status(400).send("No file uploaded")
+        }
         const confidence = 0.5
         const iou = 0.3
 
         const form = new FormData()
         form.append("image", fs.createReadStream(req.file.path))
-        form.append("confidence", confidence)
-        form.append("iou", iou)
+        form.append("confidence", confidence.toString())
+        form.append("iou", iou.toString())
 
         const response = await axios.post(
-          "http://localhost:5001/bounding-box-corners",
+          `${FLASK_API_BASE}/bounding-box-corners`,
           form,
           {
             headers: form.getHeaders(),
@@ -61,11 +66,14 @@ module.exports.setApp = function (app, client) {
       } catch (error) {
         console.error(
           "Error calling Python API for box corners:",
-          error.message
+          error.message,
+          error.response?.data // Log more details if available
         )
         res.status(500).send("Error retrieving box corners")
       } finally {
-        fs.unlink(req.file.path, () => {})
+        if (req.file) {
+          fs.unlink(req.file.path, () => {})
+        }
       }
     }
   )
