@@ -665,26 +665,24 @@ export default function MapScreen() {
             )}
 
             {/* This animated view handles the tooltip for the red-box */}
-            <Animated.View
-              style={[
-                styles.infoBubble,
-                {
-                  top: Animated.add(bouncingPosition.y, new Animated.Value(10)),
+            {apiBox && (
+              <Animated.View
+                style={[
+                  styles.infoBubble,
+                  {
+                    top: Animated.add(bouncingPosition.y, new Animated.Value(10)),
                   left: Animated.add(bouncingPosition.x, tooltipOffset),
                 },
               ]}
             >
               <BlurView intensity={50} tint="dark" style={styles.flightCard}>
-                <Text style={styles.flightTitle}>Flight 12812 ⭐</Text>
-                <Text style={styles.route}>JP → NY</Text>
-                <Text style={styles.arrival}>
-                  Estimated Arrival: 8:00PM EST
-                </Text>
-                <View style={styles.detailsButton}>
-                  <Text style={styles.detailsText}>See details</Text>
-                </View>
+                <Text style={styles.flightTitle}>{flightInView?.callsign ?? "False Positive or Unknown"}</Text>
+                <Text style={styles.route}>{flightInView?.orig_iata ?? "False Positive or Unknown"}</Text>
+                <Text style={styles.route}>{flightInView?.dest_iata ?? "False Positive or Unknown"}</Text>
+                <Text style={styles.arrival}>{flightInView?.eta ?? "False Positive or Unknown"}</Text>
               </BlurView>
             </Animated.View>
+            )}
           </>
         ) : (
           // all well and good, finish up this end - if we don't have permission, hence the else statement below (line beneath this one)

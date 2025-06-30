@@ -18,6 +18,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useFlightRadius } from '@/context/FlightRadiusContext';
 
+import { ScrollView } from 'react-native';
+
 // Wrap the screen in GestureHandlerRootView for gesture support
 function withGestureHandlerRootView(Component: React.ComponentType) {
   return function Wrapper(props: any) {
@@ -57,7 +59,7 @@ function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={[styles.titleContainer, { backgroundColor: themeColors.background }]}>
         <ThemedText type="title">Settings</ThemedText>
       </View>
@@ -132,14 +134,14 @@ function SettingsScreen() {
         <ThemedText type="subtitle" style={ styles.sectionTitle }>About</ThemedText>
         <View style={[styles.item, { backgroundColor: themeColors.background }]}>
           <ThemedText>Version</ThemedText>
-          <ThemedText type="defaultSemiBold">Development Build - Semester 1</ThemedText>
+          <ThemedText type="defaultSemiBold">Development Build - Semester 2 (Ugly Version)</ThemedText>
         </View>
         <View style={[styles.item, { backgroundColor: themeColors.background }]}> 
           <ThemedText>Developers</ThemedText>
           <ThemedText type="defaultSemiBold">L10 - Look Up Dev Team</ThemedText>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
