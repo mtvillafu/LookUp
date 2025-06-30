@@ -71,9 +71,7 @@ module.exports.setApp = function (app, client) {
         )
         res.status(500).send("Error retrieving box corners")
       } finally {
-        if (req.file) {
-          fs.unlink(req.file.path, () => {})
-        }
+        fs.unlink(req.file.path, () => {})
       }
     }
   )
