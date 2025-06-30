@@ -11,14 +11,14 @@ import {
   Modal,
   Pressable,
   ActionSheetIOS,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import FlightCard from "../../components/FlightCard";
+import { useFlights, Flight } from "../../hooks/useFlights";
 
-interface SearchProps {
-  closeSearch?: () => void;
-}
+const DEFAULT_BOUNDS = "50.682,46.218,14.422,22.243";  // your region
 
 const TIME_RANGES = [
   { label: "Morning (00:00 - 12:00)", value: "morning" },
@@ -26,98 +26,108 @@ const TIME_RANGES = [
   { label: "Evening (18:00 - 23:59)", value: "evening" },
 ];
 
-// 10 sample flights for testing
-const initialFlights = [
-  { id: "1", ident: "AA1234", origin: "JFK", destination: "LAX", departureTime: "2025-06-24T06:15:00Z", arrivalTime: "2025-06-24T09:45:00Z", airline: "American Airlines" },
-  { id: "2", ident: "BA5678", origin: "LHR", destination: "SFO", departureTime: "2025-06-24T11:00:00Z", arrivalTime: "2025-06-24T14:30:00Z", airline: "British Airways" },
-  { id: "3", ident: "DL9876", origin: "ATL", destination: "ORD", departureTime: "2025-06-24T13:30:00Z", arrivalTime: "2025-06-24T15:00:00Z", airline: "Delta Airlines" },
-  { id: "4", ident: "UA2468", origin: "MIA", destination: "SEA", departureTime: "2025-06-24T17:45:00Z", arrivalTime: "2025-06-24T21:15:00Z", airline: "United Airlines" },
-  { id: "5", ident: "SW1122", origin: "DAL", destination: "HOU", departureTime: "2025-06-24T07:50:00Z", arrivalTime: "2025-06-24T08:50:00Z", airline: "Southwest" },
-  { id: "6", ident: "AF3344", origin: "CDG", destination: "JFK", departureTime: "2025-06-24T19:05:00Z", arrivalTime: "2025-06-24T22:30:00Z", airline: "Air France" },
-  { id: "7", ident: "LH7788", origin: "FRA", destination: "LAX", departureTime: "2025-06-24T05:00:00Z", arrivalTime: "2025-06-24T08:30:00Z", airline: "Lufthansa" },
-  { id: "8", ident: "EK9999", origin: "DXB", destination: "SYD", departureTime: "2025-06-24T22:15:00Z", arrivalTime: "2025-06-25T06:45:00Z", airline: "Emirates" },
-  { id: "9", ident: "QF4321", origin: "SYD", destination: "AKL", departureTime: "2025-06-24T14:20:00Z", arrivalTime: "2025-06-24T19:00:00Z", airline: "Qantas" },
-  { id: "10", ident: "JL5566", origin: "NRT", destination: "SFO", departureTime: "2025-06-24T09:00:00Z", arrivalTime: "2025-06-24T17:00:00Z", airline: "Japan Airlines" },
-];
-
-const Search: React.FC<SearchProps> = ({ closeSearch }) => {
+const Search: React.FC = () => {
   const router = useRouter();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filteredFlights, setFilteredFlights] = useState(initialFlights);
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  // advanced filters
   const [originFilter, setOriginFilter] = useState("");
   const [destinationFilter, setDestinationFilter] = useState("");
   const [airlineFilter, setAirlineFilter] = useState("");
   const [departureRange, setDepartureRange] = useState("");
   const [arrivalRange, setArrivalRange] = useState("");
 
-  // Re-filter whenever any input or filter changes
+  // Always fetch by bounds
+  const { data: flights, loading, error, refetch } = useFlights({ bounds: DEFAULT_BOUNDS }, 60000)
+
+  // Now do ALL filtering client-side:
+  const [filteredFlights, setFilteredFlights] = useState<Flight[]>([]);
   useEffect(() => {
-    const s = searchQuery.toLowerCase();
-    const newList = initialFlights.filter((f) => {
-      const matchesSearch =
-        f.ident.toLowerCase().includes(s) ||
-        f.origin.toLowerCase().includes(s) ||
-        f.destination.toLowerCase().includes(s);
+    const s = searchQuery.toLowerCase().trim();
 
-      const matchesOrigin = f.origin.toLowerCase().includes(originFilter.toLowerCase());
-      const matchesDestination = f.destination.toLowerCase().includes(destinationFilter.toLowerCase());
-      const matchesAirline = f.airline.toLowerCase().includes(airlineFilter.toLowerCase());
+    setFilteredFlights(
+      flights.filter((f) => {
+        // 1) flight-number/origin/dest text search
+        const matchesSearch =
+          f.ident.toLowerCase().includes(s) ||
+          f.origin.toLowerCase().includes(s) ||
+          f.destination.toLowerCase().includes(s);
 
-      const depHr = new Date(f.departureTime).getHours();
-      const arrHr = new Date(f.arrivalTime).getHours();
+        // 2) advanced text filters
+        const mo = f.origin
+          .toLowerCase()
+          .includes(originFilter.toLowerCase());
+        const md = f.destination
+          .toLowerCase()
+          .includes(destinationFilter.toLowerCase());
+        const ma = f.airline
+          .toLowerCase()
+          .includes(airlineFilter.toLowerCase());
 
-      const inRange = (range: string, hr: number) => {
-        if (!range) return true;
-        if (range === "morning") return hr >= 0 && hr < 12;
-        if (range === "afternoon") return hr >= 12 && hr < 18;
-        if (range === "evening") return hr >= 18 && hr <= 23;
-        return true;
-      };
+        // 3) time‐of‐day filters
+        const depHr = new Date(f.departureTime).getHours();
+        const arrHr = new Date(f.arrivalTime).getHours();
+        const inRange = (rng: string, hr: number) => {
+          if (!rng) return true;
+          if (rng === "morning") return hr < 12;
+          if (rng === "afternoon") return hr >= 12 && hr < 18;
+          if (rng === "evening") return hr >= 18;
+          return true;
+        };
 
-      return (
-        matchesSearch &&
-        matchesOrigin &&
-        matchesDestination &&
-        matchesAirline &&
-        inRange(departureRange, depHr) &&
-        inRange(arrivalRange, arrHr)
-      );
-    });
-    setFilteredFlights(newList);
-  }, [searchQuery, originFilter, destinationFilter, airlineFilter, departureRange, arrivalRange]);
+        return (
+          matchesSearch &&
+          mo &&
+          md &&
+          ma &&
+          inRange(departureRange, depHr) &&
+          inRange(arrivalRange, arrHr)
+        );
+      })
+    );
+  }, [
+    flights,
+    searchQuery,
+    originFilter,
+    destinationFilter,
+    airlineFilter,
+    departureRange,
+    arrivalRange,
+  ]);
 
-  // Show action sheet for time range
-  const showTimeRangePicker = (title: string, setValue: (v: string) => void) => {
+  const showTimeRangePicker = (title: string, setter: (v: string) => void) => {
     const options = TIME_RANGES.map((r) => r.label).concat("Cancel");
     ActionSheetIOS.showActionSheetWithOptions(
       { title, options, cancelButtonIndex: options.length - 1 },
       (idx) => {
-        if (idx < TIME_RANGES.length) setValue(TIME_RANGES[idx].value);
+        if (idx < TIME_RANGES.length) setter(TIME_RANGES[idx].value);
       }
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Fixed Header */}
+      {/* header */}
       <Text style={styles.title}>Search</Text>
       <View style={styles.searchBar}>
         <TextInput
           style={styles.input}
-          placeholder="Search Flight #, Origin, or Destination"
+          placeholder="Search Flight #, Origin, Dest…"
           placeholderTextColor="#ccc"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <TouchableOpacity style={styles.filterButton} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setModalVisible(true)}
+        >
           <Ionicons name="options-outline" size={24} color="white" />
         </TouchableOpacity>
       </View>
 
-      {/* Scrollable Flight List */}
+      {/* list with pull-to-refresh */}
       <FlatList
         data={filteredFlights}
         keyExtractor={(item) => item.id}
@@ -132,31 +142,41 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
             onPress={() =>
               router.push({
                 pathname: "/flightDetails",
-                params: {
-                  ident: item.ident,
-                  origin: item.origin,
-                  destination: item.destination,
-                  departureTime: item.departureTime,
-                  arrivalTime: item.arrivalTime,
-                  airline: item.airline,
-                },
+                params: { ...item },
               })
             }
           />
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No flights found.</Text>}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={() => {
+          if (loading)
+            return <ActivityIndicator color="white" style={{ margin: 20 }} />;
+          if (error)
+            return (
+              <Text style={styles.errorText}>
+                Error loading flights. Pull down to retry.
+              </Text>
+            );
+          return (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                No flights match your filters.{'\n'}
+                Pull down to refresh.
+              </Text>
+            </View>
+          );
+        }}
+        refreshing={loading}
+        onRefresh={refetch}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
       />
 
-      {/* Filters Modal */}
+      {/* advanced filters modal */}
       <Modal
         animationType="slide"
         transparent
-        presentationStyle="overFullScreen"
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
+        presentationStyle="overFullScreen"
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -164,7 +184,7 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
 
             <TextInput
               style={styles.filterInput}
-              placeholder="Filter by Origin"
+              placeholder="Origin"
               placeholderTextColor="#ccc"
               value={originFilter}
               onChangeText={setOriginFilter}
@@ -172,7 +192,7 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
 
             <TextInput
               style={styles.filterInput}
-              placeholder="Filter by Destination"
+              placeholder="Destination"
               placeholderTextColor="#ccc"
               value={destinationFilter}
               onChangeText={setDestinationFilter}
@@ -180,7 +200,7 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
 
             <TextInput
               style={styles.filterInput}
-              placeholder="Filter by Airline"
+              placeholder="Airline"
               placeholderTextColor="#ccc"
               value={airlineFilter}
               onChangeText={setAirlineFilter}
@@ -189,9 +209,15 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
             <Text style={styles.filterSubtitle}>Departure Time Range</Text>
             <Pressable
               style={styles.selectInput}
-              onPress={() => showTimeRangePicker("Select Departure Range", setDepartureRange)}
+              onPress={() =>
+                showTimeRangePicker("Select Departure Range", setDepartureRange)
+              }
             >
-              <Text style={departureRange ? styles.selectedText : styles.placeholderText}>
+              <Text
+                style={
+                  departureRange ? styles.selectedText : styles.placeholderText
+                }
+              >
                 {departureRange
                   ? TIME_RANGES.find((r) => r.value === departureRange)!.label
                   : "Select Departure Time Range"}
@@ -201,9 +227,15 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
             <Text style={styles.filterSubtitle}>Arrival Time Range</Text>
             <Pressable
               style={styles.selectInput}
-              onPress={() => showTimeRangePicker("Select Arrival Range", setArrivalRange)}
+              onPress={() =>
+                showTimeRangePicker("Select Arrival Range", setArrivalRange)
+              }
             >
-              <Text style={arrivalRange ? styles.selectedText : styles.placeholderText}>
+              <Text
+                style={
+                  arrivalRange ? styles.selectedText : styles.placeholderText
+                }
+              >
                 {arrivalRange
                   ? TIME_RANGES.find((r) => r.value === arrivalRange)!.label
                   : "Select Arrival Time Range"}
@@ -223,7 +255,10 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
               <Text style={styles.clearButtonText}>Clear Filters</Text>
             </Pressable>
 
-            <Pressable style={styles.closeButton} onPress={() => setModalVisible(false)}>
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
               <Text style={styles.closeButtonText}>Close</Text>
             </Pressable>
           </View>
@@ -233,9 +268,21 @@ const Search: React.FC<SearchProps> = ({ closeSearch }) => {
   );
 };
 
+export default Search;
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#1E1E1E", paddingTop: 55, paddingHorizontal: 20 },
-  title: { color: "white", textAlign: "center", fontSize: 24, fontWeight: "bold" },
+  container: {
+    flex: 1,
+    backgroundColor: "#1E1E1E",
+    paddingTop: 55,
+    paddingHorizontal: 20,
+  },
+  title: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -245,18 +292,57 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  input: { flex: 1, color: "white", fontSize: 16, paddingHorizontal: 10 },
-  filterButton: { marginLeft: 10 },
-  emptyText: { color: "white", textAlign: "center", marginTop: 20 },
+  input: {
+    flex: 1,
+    color: "white",
+    fontSize: 16,
+    paddingHorizontal: 10,
+  },
+  filterButton: {
+    marginLeft: 10,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyText: {
+    color: "#ccc",
+    textAlign: "center",
+    fontSize: 16,
+  },
+  errorText: {
+    color: "red",
+    textAlign: "center",
+    marginTop: 20,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContent: { width: "90%", backgroundColor: "#333", borderRadius: 10, padding: 20, overflow: "visible" },
-  filterTitle: { color: "white", fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-  filterSubtitle: { color: "white", fontSize: 14, fontWeight: "bold", marginTop: 15, marginBottom: 5 },
+  modalContent: {
+    width: "90%",
+    backgroundColor: "#333",
+    borderRadius: 10,
+    padding: 20,
+    overflow: "visible",
+  },
+  filterTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  filterSubtitle: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "bold",
+    marginTop: 15,
+    marginBottom: 5,
+  },
   filterInput: {
     backgroundColor: "#555",
     color: "white",
@@ -266,13 +352,42 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
   },
-  selectInput: { backgroundColor: "#555", borderRadius: 8, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 10 },
-  placeholderText: { color: "#ccc", fontSize: 16 },
-  selectedText: { color: "white", fontSize: 16 },
-  clearButton: { borderColor: "white", borderWidth: 1, padding: 10, borderRadius: 8, marginTop: 10, alignItems: "center" },
-  clearButtonText: { color: "white", fontWeight: "bold" },
-  closeButton: { backgroundColor: "white", padding: 10, borderRadius: 8, marginTop: 15, alignItems: "center" },
-  closeButtonText: { color: "black", fontWeight: "bold" },
+  selectInput: {
+    backgroundColor: "#555",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  placeholderText: {
+    color: "#ccc",
+    fontSize: 16,
+  },
+  selectedText: {
+    color: "white",
+    fontSize: 16,
+  },
+  clearButton: {
+    borderColor: "white",
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    alignItems: "center",
+  },
+  clearButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  closeButton: {
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 15,
+    alignItems: "center",
+  },
+  closeButtonText: {
+    color: "black",
+    fontWeight: "bold",
+  },
 });
-
-export default Search;
