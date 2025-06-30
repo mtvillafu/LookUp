@@ -90,12 +90,12 @@ def bounding_box_corners():
 
     temp_path_compressed = "/tmp/uploaded_compressed.jpg"
     img = Image.open(temp_path)
-    img.thumbnail((1024, 1024))  # Resize to max 1024x1024 while keeping aspect ratio
-    img.save(temp_path_compressed, format="JPEG", quality=85)  # Compress
+    img.thumbnail((1024, 1024))  
+    img.save(temp_path_compressed, format="JPEG", quality=85)  
 
     max_size = 1024
     quality = 85
-    size_limit_mb = 1
+    size_limit_mb = 4
     count = 1
 
     while True:
@@ -106,6 +106,7 @@ def bounding_box_corners():
         file_size_mb = os.path.getsize(temp_path_compressed) / (1024 * 1024)
 
         print(count + ": " + file_size_mb)
+        count = count + 1
 
         if file_size_mb <= size_limit_mb:
             break
@@ -120,7 +121,7 @@ def bounding_box_corners():
 
 
 
-    result = CLIENT.infer(temp_path, model_id=MODEL_ID)
+    result = CLIENT.infer(temp_path_compressed, model_id=MODEL_ID)
     predictions = result.get('predictions', [])
     predictions = [p for p in predictions if p['confidence'] >= confidence]
     predictions = non_max_suppression(predictions, iou)
