@@ -51,11 +51,11 @@ module.exports.setApp = function (app, client) {
 
         const form = new FormData()
         form.append("image", fs.createReadStream(req.file.path))
-        form.append("confidence", confidence)
-        form.append("iou", iou)
+        form.append("confidence", confidence.toString())
+        form.append("iou", iou.toString())
 
         const response = await axios.post(
-          "http://localhost:5001/bounding-box-corners",
+          `${FLASK_API_BASE}/bounding-box-corners`,
           form,
           {
             headers: form.getHeaders(),
