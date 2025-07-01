@@ -105,7 +105,7 @@ def bounding_box_corners():
 
         file_size_mb = os.path.getsize(temp_path_compressed) / (1024 * 1024)
 
-        print(f"{count}: {file_size_mb:.2f} MB")
+        print(count + ": " + file_size_mb)
         count = count + 1
 
         if file_size_mb <= size_limit_mb:
