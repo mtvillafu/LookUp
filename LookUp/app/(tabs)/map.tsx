@@ -129,8 +129,6 @@ export default function MapScreen() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [flightInView, setFlightInView] = useState<Flight | null>(null);
 
-
-
   // ============================= GET USER'S BEARING =============================
   function getBearing(lat1: number, lon1: number, lat2: number, lon2: number) {
     const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -722,16 +720,16 @@ export default function MapScreen() {
               description={`Altitude: ${flight.alt} ft, Speed: ${flight.gspeed} km/h`}
             >
               {/* Ionicons plane icon as marker */}
-              <View style={{ alignItems: "center", justifyContent: "center" }}>
+                <View style={{ alignItems: "center", justifyContent: "center" }}>
                 <Ionicons
                   name="airplane"
                   size={28}
                   color="#007aff"
                   style={{
-                    transform: [{ rotate: `${flight.track}deg` }],
+                  transform: [{ rotate: `${flight.track - 90}deg` }], // planes were flying sideways, -90 degrees corrects this
                   }}
                 />
-              </View>
+                </View>
             </Marker>
           ))}
         </MapView>

@@ -30,8 +30,12 @@ const TIME_RANGES = [
 const Search: React.FC = () => {
   const router = useRouter();
 
+  const { flightNumber } = useLocalSearchParams();
+
   const [modalVisible, setModalVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(
+    typeof flightNumber === "string" ? flightNumber : ""
+  );
 
   // advanced filters
   const [originFilter, setOriginFilter] = useState("");
@@ -108,14 +112,12 @@ const Search: React.FC = () => {
     );
   };
 
-  const { flightNumber } = useLocalSearchParams();
-
   // Default to use the state for the input if the flightNumber is defined
   const [searchValue, setSearchValue] = useState(flightNumber ?? "");  
 
   // if the parameter changes (navigating to this screen), update the input
   useEffect(() => {
-    if (flightNumber) setSearchValue(flightNumber as string);
+    if (typeof flightNumber === "string") setSearchQuery(flightNumber);
   }, [flightNumber]);
 
   return (
