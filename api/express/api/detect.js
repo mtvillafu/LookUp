@@ -3,7 +3,7 @@ const axios = require("axios")
 const FormData = require("form-data")
 const multer = require("multer")
 
-const FLASK_API_BASE = "http://134.199.204.181:3000"
+const FLASK_API_BASE = "http://localhost:5001"
 
 const upload = multer({ dest: "uploads/" })
 
@@ -37,6 +37,40 @@ module.exports.setApp = function (app, client) {
       fs.unlink(req.file.path, () => {})
     }
   })
+
+  app.post(
+    "/api/proxy-detect-resized",
+    upload.single("image"),
+    async (req, res) => {
+      try {
+        const confidence = 0.5
+        const iou = 0.3
+
+        const form = new FormData()
+        form.append("image", fs.createReadStream(req.file.path))
+        form.append("confidence", confidence)
+        form.append("iou", iou)
+
+        // POST to Flask
+        const response = await axios.post(
+          "http://localhost:5001/detect-and-annotat-resized",
+          form,
+          {
+            headers: form.getHeaders(),
+            responseType: "stream",
+          }
+        )
+
+        res.set("Content-Type", "image/jpeg")
+        response.data.pipe(res)
+      } catch (error) {
+        console.error("Error calling Python API:", error.message)
+        res.status(500).send("Error processing image")
+      } finally {
+        fs.unlink(req.file.path, () => {})
+      }
+    }
+  )
 
   app.post(
     "/api/proxy-box-corners",
