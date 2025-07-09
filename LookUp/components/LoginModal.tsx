@@ -8,7 +8,9 @@ export default function LoginModal() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(''); // State for error messages
+  const [error, setError] = useState(''); 
+  const [success, setSuccess] = useState(''); 
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
 
 // Shared value for fade-in/out effect
   const fadeAnim = useSharedValue(0);
@@ -30,9 +32,69 @@ export default function LoginModal() {
     opacity: fadeAnim.value,
   }));
 
-  const handleLogin = () => {
-    // Reset error state
+  const handleForgotPassword = () => {
     setError('');
+    setSuccess('');
+    console.log('forgot password email: ', email);
+
+    fetch('http://134.199.204.181:3000/api/forgot-password-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || 'Failed to send reset email.');
+        }
+        setSuccess('Reset email sent! Check your inbox.');
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to send reset email.');
+      });
+  };
+
+  const handleRegister = () => {
+    setError('');
+    setSuccess('');
+
+    fetch('http://134.199.204.181:3000/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || 'Registration failed.');
+        }
+        setSuccess('Registration successful! You can now log in.');
+        setIsRegistering(false); // Switch back to login view
+      })
+      .catch((err) => {
+        setError(err.message || 'Registration failed.');
+      });
+  };
+
+  const handleLogin = () => {
+    setError('');
+    setSuccess('');
+    fetch('http://134.199.204.181:3000/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      })
+        .then (async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.message || 'Login failed.');
+          }
+          setSuccess('Login successful!');
+      })
+    console.log('Logging in with:', { email, password });
+  }
+
+  const handleLoginAndRegister = () => {
 
     // Validate email and password
     if (!email.trim()) {
@@ -44,8 +106,16 @@ export default function LoginModal() {
       return;
     }
 
-    // Perform login logic (e.g., API call)
-    console.log('Logging in with:', { email, password });
+    if (!isRegistering) {
+      handleLogin();
+      console.log('Logging in with:', { email, password });
+    }
+    else if (isRegistering)
+    {
+      handleRegister();
+      console.log('Registering with:', { email, password });
+    }
+    
     handleClose(); // Close modal after successful login
   };
 
@@ -53,46 +123,94 @@ export default function LoginModal() {
     <Modal transparent visible={isLoginModalVisible} onRequestClose={handleClose}>
       <Animated.View style={[styles.overlay, animatedStyle]}>
         <View style={styles.modalContainer}>
-          <Text style={styles.title}>{isRegistering ? 'Register' : 'Login'}</Text>
+          <Text style={styles.title}>
+            {isForgotPassword
+              ? 'Reset Password'
+              : isRegistering
+              ? 'Register'
+              : 'Login'}
+          </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#aaa"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
+          {/* Forgot Password View */}
+          {isForgotPassword ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#aaa"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Show confirm password field only if registering */}
-          {isRegistering && (
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor="#aaa"
-              secureTextEntry
-            />
+              <TouchableOpacity style={styles.button} onPress={handleForgotPassword}>
+                <Text style={styles.buttonText}>Send Reset Email</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setIsForgotPassword(false)}>
+                <Text style={styles.switchText}>Back to Login</Text>
+              </TouchableOpacity>
+            </>
+          ) 
+          : 
+          ( 
+            <>
+              {/* Login/Register View */}
+              
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor="#aaa"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#aaa"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+
+              {isRegistering && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#aaa"
+                  secureTextEntry
+                />
+              )}
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <TouchableOpacity style={styles.button} onPress={handleLoginAndRegister}>
+                <Text style={styles.buttonText}>{isRegistering ? 'Register' : 'Login'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
+                <Text style={styles.switchText}>
+                  {isRegistering
+                    ? 'Already have an account? Login'
+                    : "Don't have an account? Register"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Forgot Password Button */}
+              {!isRegistering && (
+                <TouchableOpacity onPress={() => setIsForgotPassword(true)}>
+                  <Text style={[styles.switchText, { color: '#ff9800' }]}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
-
-          {/* Display error message */}
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>{isRegistering ? 'Register' : 'Login'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setIsRegistering(!isRegistering)}>
-            <Text style={styles.switchText}>
-              {isRegistering ? 'Already have an account? Login' : "Don't have an account? Register"}
-            </Text>
-          </TouchableOpacity>
 
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>Close</Text>
@@ -146,6 +264,12 @@ const styles = StyleSheet.create({
   closeButtonText: { color: '#fff', fontSize: 16 },
   errorText: {
     color: 'red',
+    fontSize: 14,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  successText: {
+    color: 'blue',
     fontSize: 14,
     marginBottom: 10,
     textAlign: 'center',

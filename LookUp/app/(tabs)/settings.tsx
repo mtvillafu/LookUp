@@ -16,6 +16,10 @@ import { useAppTheme } from '@/theme/ThemeContext';
 import { Colors } from '@/constants/Colors';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { useFlightRadius } from '@/context/FlightRadiusContext';
+
+import { ScrollView } from 'react-native';
+
 // Wrap the screen in GestureHandlerRootView for gesture support
 function withGestureHandlerRootView(Component: React.ComponentType) {
   return function Wrapper(props: any) {
@@ -31,25 +35,11 @@ function SettingsScreen() {
   // for Picker
   const [selectedLanguage, setSelectedLanguage] = useState('');
 
-  const [flightRadius, setFlightRadius] = useState(10);
+  const { flightRadius, setFlightRadius } = useFlightRadius();
 
   // Sending the flight radius value to the backend
   const updateFlightRadius = async (radius: number) => {
-    try {
-      const response = await fetch('PUT BACKEND_URL_HERE', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ flightRadius: radius }), // This is the payload!
-      });
-      if (!response.ok) {
-        throw new Error('failed to update flight radius');
-      }
-      // here is where we would handle the response.
-      } catch (error) {
-        console.error('Error updating flight radius:', error);
-    }
+    setFlightRadius(radius);
   };
 
   const { theme, toggleTheme } = useAppTheme();
@@ -69,7 +59,7 @@ function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={[styles.titleContainer, { backgroundColor: themeColors.background }]}>
         <ThemedText type="title">Settings</ThemedText>
       </View>
@@ -98,10 +88,11 @@ function SettingsScreen() {
 
       <View style={[styles.section, { backgroundColor: themeColors.background }]}>
         <ThemedText type="subtitle" style={ styles.sectionTitle }>Flight Detection Radius</ThemedText>
-        <ThemedText style={{ marginBottom: 12 }}>Set how far (in miles) to passively scan for nearby flights:</ThemedText>
-        <ThemedText style={{ marginBottom: 8 }}>Radius: {flightRadius} miles</ThemedText>
+        <ThemedText style={{ marginBottom: 12 }}>Set how far (in km) to passively scan for nearby flights:</ThemedText>
+        <ThemedText style={{ marginBottom: 8 }}>Radius: {flightRadius} km</ThemedText>
 
         {/* Placeholder picker in lieu of the slider below, since it's got a bug :P.*/}
+        
         <Picker
           selectedValue={flightRadius}
           onValueChange={(itemValue) => updateFlightRadius(Number(itemValue))}
@@ -143,14 +134,14 @@ function SettingsScreen() {
         <ThemedText type="subtitle" style={ styles.sectionTitle }>About</ThemedText>
         <View style={[styles.item, { backgroundColor: themeColors.background }]}>
           <ThemedText>Version</ThemedText>
-          <ThemedText type="defaultSemiBold">Development Build - Semester 1</ThemedText>
+          <ThemedText type="defaultSemiBold">Development Build - Semester 2 (Ugly Version)</ThemedText>
         </View>
         <View style={[styles.item, { backgroundColor: themeColors.background }]}> 
           <ThemedText>Developers</ThemedText>
           <ThemedText type="defaultSemiBold">L10 - Look Up Dev Team</ThemedText>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

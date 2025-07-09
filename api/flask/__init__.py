@@ -85,6 +85,41 @@ def bounding_box_corners():
     temp_path = "/tmp/uploaded.png"
     image_file.save(temp_path)
 
+
+
+
+    temp_path_compressed = "/tmp/uploaded_compressed.jpg"
+    img = Image.open(temp_path)
+    img.thumbnail((1024, 1024))  # Resize to max 1024x1024 while keeping aspect ratio
+    img.save(temp_path_compressed, format="JPEG", quality=85)  # Compress
+
+    max_size = 1024
+    quality = 85
+    size_limit_mb = 1
+    count = 1
+
+    while True:
+        img.thumbnail((max_size, max_size))
+
+        img.save(temp_path_compressed, format="JPEG", quality=quality)
+
+        file_size_mb = os.path.getsize(temp_path_compressed) / (1024 * 1024)
+
+        print(count + ": " + file_size_mb)
+
+        if file_size_mb <= size_limit_mb:
+            break
+
+        max_size = int(max_size * 0.9) 
+        quality = max(50, quality - 5) 
+
+        if max_size < 200:
+            os.remove(temp_path)
+            os.remove(temp_path_compressed)
+            return jsonify({"error": "Cannot compress image below size limit"}), 400
+
+
+
     result = CLIENT.infer(temp_path, model_id=MODEL_ID)
     predictions = result.get('predictions', [])
     predictions = [p for p in predictions if p['confidence'] >= confidence]
@@ -111,4 +146,5 @@ def bounding_box_corners():
     return jsonify(corner_data)
 
 if __name__ == '__main__':
-    app.run(port=5001)
+    # app.run(host="::", port=5001)
+    app.run(host="0.0.0.0", port=5001)
